@@ -728,18 +728,21 @@ export default function PrepOS() {
     <div className="min-h-screen bg-slate-950 py-6 px-3">
       <div className="bg-slate-950 text-slate-200 rounded-xl border border-slate-800 max-w-3xl mx-auto font-sans">
         
-        {/* Top Header */}
-        <div className="px-5 py-4 border-b border-slate-800 flex items-center justify-between">
+        {/* Top Header - Centered Title Layout */}
+        <div className="px-5 py-4 border-b border-slate-800 grid grid-cols-3 items-center">
           <div>
-            <div className="text-sm font-semibold tracking-wide text-slate-100 flex items-center gap-2">
-              <span>prep-os</span>
-              <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-teal-950/80 text-teal-400 border border-teal-800/60">v3.0</span>
-            </div>
-            <div className="text-xs text-slate-500 font-mono flex items-center gap-1.5 mt-0.5">
+            <div className="text-xs text-slate-500 font-mono flex items-center gap-1.5">
               <Flame size={12} className="text-amber-500" /> {streak()} day streak
             </div>
           </div>
-          <div className="flex gap-2">
+          
+          <div className="text-center">
+            <div className="text-sm font-semibold tracking-wider text-slate-100 uppercase">
+              Muntazir Mehdi <span className="text-teal-400">PREP LOG</span>
+            </div>
+          </div>
+
+          <div className="flex gap-2 justify-end">
             <button onClick={exportBackup} className="p-2 rounded-lg bg-slate-900 border border-slate-700 text-slate-400 hover:text-teal-400 transition" title="Export backup"><Download size={14} /></button>
             <label className="p-2 rounded-lg bg-slate-900 border border-slate-700 text-slate-400 hover:text-teal-400 transition cursor-pointer" title="Import backup">
               <Upload size={14} /><input type="file" accept=".json" onChange={importBackup} className="hidden" />
