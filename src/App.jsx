@@ -39,8 +39,8 @@ const SOURCES = [
   { name: 'The Hindu — Editorial', url: 'https://www.thehindu.com/opinion/editorial/', note: 'Daily, structured opinion writing model' },
   { name: 'PRS India', url: 'https://prsindia.org', note: 'Bill & policy analysis — best model for structured thinking' },
   { name: 'MP-IDSA', url: 'https://www.idsa.in', note: 'Defence & strategic affairs depth (CDS/CAPF relevant)' },
-  { name: 'Mrunal — Economy', url: 'https://mrunal.org', note: 'The "why" behind economic policy, not just definitions' },
-  { name: 'Drishti IAS — Mains Answer Writing', url: 'https://www.drishtiias.com', note: 'Structural templates for essay/precis, free' },
+  { name: 'ORF — Observer Research Foundation', url: 'https://www.orfonline.org', note: 'Strategic geopolitics and foreign policy think tank' },
+  { name: 'Google DeepMind Research', url: 'https://deepmind.google/blog/', note: 'Frontier AI, foundation models, and deep learning research' }
 ];
 
 const ANALYSIS_FRAMEWORK = ['cause', 'stakeholders', 'mechanism', 'effects', 'historicalParallel', 'globalComparison', 'position'];
@@ -61,7 +61,7 @@ export default function PrepOS() {
   const [audit, setAudit] = useState([]);
   const [srs, setSrs] = useState({});
   const [analyses, setAnalyses] = useState([]);
-  const [feed, setFeed] = useState({ items: [], error: null, loadingFeed: true });
+  const [feed, setFeed] = useState({ sections: {}, error: null, loadingFeed: true });
 
   useEffect(() => {
     (async () => {
@@ -83,9 +83,9 @@ export default function PrepOS() {
       const res = await fetch('/.netlify/functions/feed');
       if (!res.ok) throw new Error('feed unavailable');
       const data = await res.json();
-      setFeed({ items: data.items || [], error: null, loadingFeed: false });
+      setFeed({ sections: data.sections || {}, error: null, loadingFeed: false });
     } catch (e) {
-      setFeed({ items: [], error: 'Live feed only works once deployed on Netlify (needs the serverless function).', loadingFeed: false });
+      setFeed({ sections: {}, error: 'Live feed only works once deployed on Netlify (needs the serverless function).', loadingFeed: false });
     }
   }
 
@@ -501,27 +501,56 @@ export default function PrepOS() {
           )}
 
           {tab === 'feed' && (
-            <div className="space-y-4">
+            <div className="space-y-6">
               <div>
-                <div className="text-xs text-slate-500 font-mono mb-2">live headlines (PIB + The Hindu editorial)</div>
-                {feed.loadingFeed && <div className="text-sm text-slate-500">loading feed...</div>}
+                <div className="text-xs text-slate-500 font-mono mb-3">curated daily intelligence (5 top topics • &le;30 days old)</div>
+                {feed.loadingFeed && <div className="text-sm text-slate-500 py-4">loading curated feeds...</div>}
                 {feed.error && <div className="text-xs text-amber-400 bg-amber-950/30 rounded-lg px-3 py-2">{feed.error}</div>}
-                <div className="space-y-1.5">
-                  {feed.items.map((item, i) => (
-                    <a key={i} href={item.link} target="_blank" rel="noreferrer" className="block bg-slate-900 rounded-lg px-3 py-2 text-xs hover:bg-slate-800">
-                      <div className="text-slate-200">{item.title}</div>
-                      <div className="text-slate-600 font-mono mt-0.5">{item.source}</div>
-                    </a>
+
+                <div className="space-y-5">
+                  {Object.entries(feed.sections).map(([sectionName, articles]) => (
+                    <div key={sectionName} className="bg-slate-900 rounded-xl p-4 border border-slate-800">
+                      <div className="flex justify-between items-center mb-3">
+                        <div className="text-xs font-mono uppercase tracking-wider text-teal-400">{sectionName}</div>
+                        <div className="text-[11px] text-slate-600 font-mono">top {articles.length}</div>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        {articles.length === 0 ? (
+                          <div className="text-xs text-slate-600 py-1">no articles found in the last 30 days</div>
+                        ) : (
+                          articles.map((item, idx) => (
+                            <a
+                              key={idx}
+                              href={item.link}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="block bg-slate-950/70 hover:bg-slate-800/80 transition-colors rounded-lg px-3 py-2.5 border border-slate-800/60 group"
+                            >
+                              <div className="text-xs text-slate-200 group-hover:text-teal-300 line-clamp-2 leading-relaxed font-sans">
+                                {item.title}
+                              </div>
+                              <div className="flex items-center gap-2 mt-1.5 text-[10px] text-slate-500 font-mono">
+                                <span className="text-slate-400 bg-slate-900 px-1.5 py-0.5 rounded border border-slate-800">{item.source}</span>
+                                <span>•</span>
+                                <span>{item.date}</span>
+                              </div>
+                            </a>
+                          ))
+                        )}
+                      </div>
+                    </div>
                   ))}
                 </div>
               </div>
+
               <div>
-                <div className="text-xs text-slate-500 font-mono mb-2">curated sources</div>
-                <div className="space-y-1.5">
+                <div className="text-xs text-slate-500 font-mono mb-2">curated direct sources</div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                   {SOURCES.map(s => (
-                    <a key={s.url} href={s.url} target="_blank" rel="noreferrer" className="block bg-slate-900 rounded-lg px-3 py-2 text-xs hover:bg-slate-800">
-                      <div className="text-slate-200">{s.name}</div>
-                      <div className="text-slate-600">{s.note}</div>
+                    <a key={s.url} href={s.url} target="_blank" rel="noreferrer" className="block bg-slate-900 rounded-lg px-3 py-2.5 text-xs hover:bg-slate-800 border border-slate-800/80">
+                      <div className="text-slate-200 font-medium">{s.name}</div>
+                      <div className="text-slate-500 text-[11px] mt-0.5">{s.note}</div>
                     </a>
                   ))}
                 </div>
