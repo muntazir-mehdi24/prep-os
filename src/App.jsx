@@ -13,6 +13,7 @@ const ERROR_TYPES = ['conceptual', 'calculation', 'silly', 'time-pressure'];
 const SRS_INTERVALS = [1, 3, 7, 14, 30, 60];
 const STRATEGIES = ['merit', 'rank-1'];
 
+// Complete Superset Syllabus across AFCAT, CDS, CAPF, and SSC CGL
 const RESOURCES = [
   {
     id: 'polity',
@@ -437,15 +438,16 @@ export default function PrepOS() {
     pushAudit(`Updated revision level to R${nextLevel} for ${resId} [Ch ${idx + 1}]`);
   }
 
-  // --- Vocab Engine Logic ---
+  // --- Vocab Engine Logic (with safe delimiter splitting) ---
   function submitDailyVocab() {
     const date = todayStr();
     const newItems = [];
+    const delimiter = /[\-\:\u2013]/;
 
     // Parse words
     const wordsLines = rawWordsInput.split('\n').map(l => l.trim()).filter(Boolean);
     wordsLines.forEach(line => {
-      const parts = line.split(/[-:–]/);
+      const parts = line.split(delimiter);
       const term = parts[0]?.trim();
       const meaning = parts.slice(1).join(' - ').trim() || 'No definition added';
       if (term) {
@@ -456,7 +458,7 @@ export default function PrepOS() {
     // Parse idioms
     const idiomsLines = rawIdiomsInput.split('\n').map(l => l.trim()).filter(Boolean);
     idiomsLines.forEach(line => {
-      const parts = line.split(/[-:–]/);
+      const parts = line.split(delimiter);
       const term = parts[0]?.trim();
       const meaning = parts.slice(1).join(' - ').trim() || 'No definition added';
       if (term) {
@@ -906,7 +908,7 @@ export default function PrepOS() {
                       </div>
 
                       {quizRevealed ? (
-                        <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 text-teal-300 font-sans text-sm animate-fade-in">
+                        <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 text-teal-300 font-sans text-sm">
                           {activeQuizPool[quizIdx]?.meaning}
                         </div>
                       ) : (
@@ -1047,7 +1049,7 @@ export default function PrepOS() {
                             className={`text-left text-xs px-2.5 py-2 rounded-lg flex items-center justify-between border transition ${levelStyles[level]}`}
                           >
                             <div className="flex items-center gap-1.5 truncate">
-                              {c.tier1 && <span className="text-amber-400 text-[10px] font-mono px-1 py-0.2 rounded bg-amber-950/80 border border-amber-800/60">★ Tier 1</span>}
+                              {c.tier1 && <span className="text-amber-400 text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-950/80 border border-amber-800/60">★ Tier 1</span>}
                               <span className="truncate">{c.name}</span>
                             </div>
                             <span className="font-mono text-[10px] ml-2 px-1.5 py-0.5 rounded bg-slate-900/80 border border-slate-700/50">
@@ -1185,6 +1187,7 @@ export default function PrepOS() {
                 </div>
               )}
 
+              {/* Active Recall SRS Subtab */}
               {subtab === 'srs' && (
                 <div className="space-y-2">
                   <div className="text-xs text-slate-500 font-mono mb-2">active recall queue &bull; recall core trap before checking answer</div>
