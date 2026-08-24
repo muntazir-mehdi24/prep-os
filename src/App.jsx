@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   Plus, Target, Layers, Trash2, Check, X, BookOpen, ClipboardList, 
   ListChecks, Activity, Download, Upload, Flame, Newspaper, Brain, 
-  ArrowRight, Clock, AlertTriangle, Eye, EyeOff 
+  ArrowRight, Clock, AlertTriangle, Eye, EyeOff, SpellCheck, RotateCcw
 } from 'lucide-react';
 import { getKey, setKey } from './supabaseClient';
 
@@ -13,7 +13,6 @@ const ERROR_TYPES = ['conceptual', 'calculation', 'silly', 'time-pressure'];
 const SRS_INTERVALS = [1, 3, 7, 14, 30, 60];
 const STRATEGIES = ['merit', 'rank-1'];
 
-// Complete Superset Syllabus across AFCAT, CDS, CAPF, and SSC CGL
 const RESOURCES = [
   {
     id: 'polity',
@@ -345,6 +344,14 @@ function daysSince(dateStr) { if (!dateStr) return 999; return Math.floor((new D
 function daysUntil(dateStr) { return Math.ceil((new Date(dateStr) - new Date()) / 86400000); }
 function todayStr() { return new Date().toISOString().slice(0, 10); }
 
+// Calendar helper functions
+function isTodaySunday() { return new Date().getDay() === 0; }
+function isTodayMonthEnd() {
+  const d = new Date();
+  const tomorrow = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1);
+  return tomorrow.getDate() === 1;
+}
+
 export default function PrepOS() {
   const [tab, setTab] = useState('dashboard');
   const [subtab, setSubtab] = useState('priority');
@@ -357,8 +364,16 @@ export default function PrepOS() {
   const [srs, setSrs] = useState({});
   const [analyses, setAnalyses] = useState([]);
   const [dailyTarget, setDailyTarget] = useState(6.0);
+  const [vocabList, setVocabList] = useState([]);
   const [feed, setFeed] = useState({ sections: {}, error: null, loadingFeed: true });
   const [revealedSrs, setRevealedSrs] = useState({});
+
+  // Vocab State
+  const [rawWordsInput, setRawWordsInput] = useState('');
+  const [rawIdiomsInput, setRawIdiomsInput] = useState('');
+  const [manualQuizMode, setManualQuizMode] = useState(false);
+  const [quizIdx, setQuizIdx] = useState(0);
+  const [quizRevealed, setQuizRevealed] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -371,6 +386,7 @@ export default function PrepOS() {
       setSrs(await getKey('srs', {}));
       setAnalyses(await getKey('analyses', []));
       setDailyTarget(await getKey('dailyTarget', 6.0));
+      setVocabList(await getKey('vocabList', []));
       setLoading(false);
     })();
     loadFeed();
@@ -414,11 +430,86 @@ export default function PrepOS() {
   function cycleChapterRevision(resId, idx) {
     const key = `${resId}-${idx}`;
     const curLevel = checklist[key] || 0;
-    const nextLevel = (curLevel + 1) % 4; // Cycles: Unread(0) -> R1(1) -> R2(2) -> Mastered(3)
+    const nextLevel = (curLevel + 1) % 4;
     const next = { ...checklist, [key]: nextLevel };
     setChecklist(next); 
     setKey('checklist', next);
     pushAudit(`Updated revision level to R${nextLevel} for ${resId} [Ch ${idx + 1}]`);
+  }
+
+  // --- Vocab Engine Logic ---
+  function submitDailyVocab() {
+    const date = todayStr();
+    const newItems = [];
+
+    // Parse words
+    const wordsLines = rawWordsInput.split('\n').map(l => l.trim()).filter(Boolean);
+    wordsLines.forEach(line => {
+      const parts = line.split(/[-:–]/);
+      const term = parts[0]?.trim();
+      const meaning = parts.slice(1).join(' - ').trim() || 'No definition added';
+      if (term) {
+        newItems.push({ id: Date.now() + Math.random(), date, term, meaning, type: 'word', score: 0 });
+      }
+    });
+
+    // Parse idioms
+    const idiomsLines = rawIdiomsInput.split('\n').map(l => l.trim()).filter(Boolean);
+    idiomsLines.forEach(line => {
+      const parts = line.split(/[-:–]/);
+      const term = parts[0]?.trim();
+      const meaning = parts.slice(1).join(' - ').trim() || 'No definition added';
+      if (term) {
+        newItems.push({ id: Date.now() + Math.random(), date, term, meaning, type: 'idiom', score: 0 });
+      }
+    });
+
+    if (newItems.length === 0) return;
+
+    const next = [...newItems, ...vocabList];
+    setVocabList(next);
+    setKey('vocabList', next);
+    pushAudit(`Logged ${wordsLines.length} words & ${idiomsLines.length} idioms to Vocab Bank`);
+    setRawWordsInput('');
+    setRawIdiomsInput('');
+  }
+
+  function deleteVocabItem(id) {
+    const next = vocabList.filter(v => v.id !== id);
+    setVocabList(next);
+    setKey('vocabList', next);
+  }
+
+  // Determine active quiz pool
+  const isSunday = isTodaySunday();
+  const isMonthEnd = isTodayMonthEnd();
+  const isQuizDay = isSunday || isMonthEnd || manualQuizMode;
+
+  function getQuizPool() {
+    if (isMonthEnd) {
+      const currentMonth = todayStr().slice(0, 7);
+      return vocabList.filter(v => v.date && v.date.startsWith(currentMonth));
+    }
+    // Default to last 7 days pool for Sunday audit
+    return vocabList.filter(v => daysSince(v.date) <= 7);
+  }
+
+  const activeQuizPool = getQuizPool();
+
+  function gradeQuizItem(correct) {
+    const currentItem = activeQuizPool[quizIdx];
+    if (currentItem) {
+      const nextList = vocabList.map(v => v.id === currentItem.id ? { ...v, score: correct ? v.score + 1 : Math.max(0, v.score - 1) } : v);
+      setVocabList(nextList);
+      setKey('vocabList', nextList);
+    }
+    setQuizRevealed(false);
+    if (quizIdx + 1 < activeQuizPool.length) {
+      setQuizIdx(quizIdx + 1);
+    } else {
+      setQuizIdx(0);
+      alert('Audit Complete! Mastered vocab items updated in your bank.');
+    }
   }
 
   // --- Mocks with Speed & Negative Bleed Logic ---
@@ -444,7 +535,7 @@ export default function PrepOS() {
     }
 
     const accuracy = Math.round((correct / total) * 100);
-    const negativePenalty = (wrong * 0.33); // 1/3 negative marking standard
+    const negativePenalty = (wrong * 0.33);
     const netScore = Math.max(0, correct - negativePenalty);
     const secPerCorrect = correct > 0 ? Math.round((timeSpent * 60) / correct) : 0;
 
@@ -473,7 +564,6 @@ export default function PrepOS() {
     const next = [entry, ...topics];
     setTopics(next); setKey('topics', next);
 
-    // Update SRS bank with Active Recall Cue
     const key = tForm.subject + '::' + entry.topic;
     const cur = srs[key] || { box: 0 };
     let box = entry.accuracy >= 80 ? Math.min(cur.box + 1, SRS_INTERVALS.length - 1) : entry.accuracy < 50 ? 0 : cur.box;
@@ -507,7 +597,7 @@ export default function PrepOS() {
     setRevealedSrs(prev => ({ ...prev, [key]: false }));
   }
 
-  // --- Analysis Bank & One-Click Bridge Logic ---
+  // --- Analysis Bank & Bridge Logic ---
   const emptyAnalysis = { topic: '', source: '', cause: '', stakeholders: '', mechanism: '', effects: '', counterArguments: '', historicalParallel: '', position: '' };
   const [aForm, setAForm] = useState(emptyAnalysis);
   
@@ -584,7 +674,7 @@ export default function PrepOS() {
   }
 
   function exportBackup() {
-    const data = { sessions, topics, checklist, books, audit, srs, analyses, dailyTarget, exportedAt: new Date().toISOString() };
+    const data = { sessions, topics, checklist, books, audit, srs, analyses, dailyTarget, vocabList, exportedAt: new Date().toISOString() };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a'); a.href = url; a.download = `prep-os-backup-${todayStr()}.json`; a.click();
@@ -597,7 +687,7 @@ export default function PrepOS() {
     reader.onload = (ev) => {
       try {
         const data = JSON.parse(ev.target.result);
-        const fields = { sessions: setSessions, topics: setTopics, checklist: setChecklist, books: setBooks, audit: setAudit, srs: setSrs, analyses: setAnalyses };
+        const fields = { sessions: setSessions, topics: setTopics, checklist: setChecklist, books: setBooks, audit: setAudit, srs: setSrs, analyses: setAnalyses, vocabList: setVocabList };
         Object.entries(fields).forEach(([k, setter]) => { if (data[k]) { setter(data[k]); setKey(k, data[k]); } });
         if (data.dailyTarget) { setDailyTarget(data.dailyTarget); setKey('dailyTarget', data.dailyTarget); }
       } catch { alert('Invalid backup file format.'); }
@@ -622,6 +712,7 @@ export default function PrepOS() {
   const TABS = [
     { id: 'dashboard', label: 'dashboard', icon: Activity },
     { id: 'log', label: 'daily log', icon: Plus },
+    { id: 'vocab', label: 'vocab & idioms', icon: SpellCheck },
     { id: 'checklist', label: 'syllabus (r1-r3)', icon: ListChecks },
     { id: 'mocks', label: 'mocks & speed', icon: ClipboardList },
     { id: 'analytics', label: 'analytics', icon: Target },
@@ -640,7 +731,7 @@ export default function PrepOS() {
           <div>
             <div className="text-sm font-semibold tracking-wide text-slate-100 flex items-center gap-2">
               <span>prep-os</span>
-              <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-teal-950/80 text-teal-400 border border-teal-800/60">v2.5</span>
+              <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-teal-950/80 text-teal-400 border border-teal-800/60">v3.0</span>
             </div>
             <div className="text-xs text-slate-500 font-mono flex items-center gap-1.5 mt-0.5">
               <Flame size={12} className="text-amber-500" /> {streak()} day streak
@@ -721,9 +812,9 @@ export default function PrepOS() {
 
               {/* High-Level Counter Metrics */}
               <div className="grid grid-cols-4 gap-2 text-center">
+                <div className="bg-slate-900 rounded-xl p-3 border border-slate-800/80"><div className="text-base font-mono text-slate-100">{vocabList.length}</div><div className="text-[11px] text-slate-500">vocab items</div></div>
                 <div className="bg-slate-900 rounded-xl p-3 border border-slate-800/80"><div className="text-base font-mono text-slate-100">{masteredChapters}/{totalChapters}</div><div className="text-[11px] text-slate-500">R3 done</div></div>
                 <div className="bg-slate-900 rounded-xl p-3 border border-slate-800/80"><div className="text-base font-mono text-slate-100">{topics.filter(t => t.isMock).length}</div><div className="text-[11px] text-slate-500">mocks</div></div>
-                <div className="bg-slate-900 rounded-xl p-3 border border-slate-800/80"><div className="text-base font-mono text-slate-100">{brier !== null ? brier.toFixed(2) : '—'}</div><div className="text-[11px] text-slate-500">brier</div></div>
                 <div className="bg-slate-900 rounded-xl p-3 border border-slate-800/80"><div className="text-base font-mono text-slate-100">{analyses.length}</div><div className="text-[11px] text-slate-500">analyses</div></div>
               </div>
 
@@ -767,7 +858,157 @@ export default function PrepOS() {
             </div>
           )}
 
-          {/* TAB 3: 3-STAGE REVISION CHECKLIST (R1, R2, R3) */}
+          {/* TAB 3: VOCAB & IDIOMS (BLACK BOOK ENGINE) */}
+          {tab === 'vocab' && (
+            <div className="space-y-5">
+              {/* Header & Controls */}
+              <div className="bg-slate-900/80 p-3.5 rounded-xl border border-slate-800 flex justify-between items-center">
+                <div>
+                  <div className="text-xs font-mono uppercase text-teal-400 font-semibold flex items-center gap-1.5">
+                    <SpellCheck size={14} />
+                    <span>Black Book Vocab & Idioms Engine</span>
+                  </div>
+                  <div className="text-[11px] text-slate-500 font-mono mt-0.5">
+                    Target: 30 Words + 10 Idioms daily &bull; Automated Sunday & Month-End Audits
+                  </div>
+                </div>
+                <button
+                  onClick={() => { setManualQuizMode(!manualQuizMode); setQuizIdx(0); setQuizRevealed(false); }}
+                  className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 rounded font-mono border border-slate-700 transition flex items-center gap-1"
+                >
+                  <RotateCcw size={11} />
+                  <span>{manualQuizMode ? 'Exit Audit' : 'Trigger Drill'}</span>
+                </button>
+              </div>
+
+              {/* FLASHCARD / AUDIT MODE */}
+              {isQuizDay ? (
+                <div className="space-y-4">
+                  <div className="bg-amber-950/30 border border-amber-800/60 rounded-xl p-3 text-xs text-amber-300 font-mono flex items-center justify-between">
+                    <span>
+                      {isMonthEnd ? '🚨 MONTH-END RETENTION MEGA-AUDIT (All Month Items)' : isSunday ? '⚡ SUNDAY WEEKLY RETENTION AUDIT (Last 7 Days)' : '🎯 MANUAL AUDIT DRILL ACTIVE'}
+                    </span>
+                    <span>{activeQuizPool.length > 0 ? `${quizIdx + 1}/${activeQuizPool.length}` : '0 Items'}</span>
+                  </div>
+
+                  {activeQuizPool.length === 0 ? (
+                    <div className="text-center py-12 text-slate-500 font-mono text-xs">
+                      No vocab items found in this audit window. Log daily words to populate Sunday tests.
+                    </div>
+                  ) : (
+                    <div className="bg-slate-900 rounded-2xl p-6 border border-slate-800 text-center space-y-4">
+                      <div className="text-[11px] font-mono px-2 py-0.5 rounded bg-slate-800 text-teal-400 inline-block uppercase">
+                        {activeQuizPool[quizIdx]?.type} &bull; Logged {activeQuizPool[quizIdx]?.date}
+                      </div>
+
+                      <div className="text-2xl font-semibold text-slate-100 tracking-wide font-serif">
+                        {activeQuizPool[quizIdx]?.term}
+                      </div>
+
+                      {quizRevealed ? (
+                        <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 text-teal-300 font-sans text-sm animate-fade-in">
+                          {activeQuizPool[quizIdx]?.meaning}
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => setQuizRevealed(true)}
+                          className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-mono border border-slate-700 transition"
+                        >
+                          Reveal Definition & Meaning
+                        </button>
+                      )}
+
+                      {quizRevealed && (
+                        <div className="flex justify-center gap-3 pt-2">
+                          <button
+                            onClick={() => gradeQuizItem(true)}
+                            className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-teal-950 hover:bg-teal-900 text-teal-300 border border-teal-700 text-xs font-mono transition"
+                          >
+                            <Check size={14} /> Remembered
+                          </button>
+                          <button
+                            onClick={() => gradeQuizItem(false)}
+                            className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-red-950 hover:bg-red-900 text-red-300 border border-red-700 text-xs font-mono transition"
+                          >
+                            <X size={14} /> Forgot / Need Review
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                /* DAILY INPUT MODE (Mon - Sat) */
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {/* 30 Words Box */}
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-mono text-slate-400 flex justify-between">
+                        <span>30 Daily Words (Black Book)</span>
+                        <span className="text-slate-600">Term - Meaning (1 per line)</span>
+                      </label>
+                      <textarea
+                        value={rawWordsInput}
+                        onChange={e => setRawWordsInput(e.target.value)}
+                        placeholder={`Ephemeral - short-lived\nUbiquitous - present everywhere\nAltruistic - selfless concern for others`}
+                        rows={6}
+                        className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-xs placeholder-slate-600 text-slate-200 font-mono"
+                      />
+                    </div>
+
+                    {/* 10 Idioms / Phrases Box */}
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-mono text-slate-400 flex justify-between">
+                        <span>10 Idioms / Phrasal Verbs</span>
+                        <span className="text-slate-600">Idiom - Meaning (1 per line)</span>
+                      </label>
+                      <textarea
+                        value={rawIdiomsInput}
+                        onChange={e => setRawIdiomsInput(e.target.value)}
+                        placeholder={`Burn the midnight oil - work late into night\nBreak the ice - initiate conversation\nCall off - cancel an event`}
+                        rows={6}
+                        className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-xs placeholder-slate-600 text-slate-200 font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={submitDailyVocab}
+                    className="w-full bg-teal-600 hover:bg-teal-500 text-slate-950 font-medium rounded-lg py-2.5 text-sm transition"
+                  >
+                    audit & save daily vocab
+                  </button>
+
+                  {/* Recents Bank */}
+                  <div className="pt-3 border-t border-slate-800 space-y-2">
+                    <div className="text-xs text-slate-500 font-mono flex justify-between">
+                      <span>Logged Vocab Vault ({vocabList.length} items stored)</span>
+                      <span className="text-teal-400">Locked on Sundays for Quizzes</span>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                      {vocabList.slice(0, 12).map(item => (
+                        <div key={item.id} className="bg-slate-900 rounded-lg p-2.5 text-xs border border-slate-800/80 flex justify-between items-start">
+                          <div>
+                            <div className="font-semibold text-slate-200 font-serif">{item.term}</div>
+                            <div className="text-slate-400 text-[11px] mt-0.5">{item.meaning}</div>
+                            <div className="text-[10px] text-slate-600 font-mono mt-1">
+                              {item.date} &bull; {item.type} {item.score > 0 ? `&bull; Score ${item.score}` : ''}
+                            </div>
+                          </div>
+                          <button onClick={() => deleteVocabItem(item.id)} className="text-slate-600 hover:text-red-400 ml-2">
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* TAB 4: 3-STAGE REVISION CHECKLIST (R1, R2, R3) */}
           {tab === 'checklist' && (
             <div className="space-y-6">
               <div className="text-xs text-slate-500 font-mono flex items-center justify-between">
@@ -822,7 +1063,7 @@ export default function PrepOS() {
             </div>
           )}
 
-          {/* TAB 4: MOCKS & SPEED / ERROR ANALYSIS */}
+          {/* TAB 5: MOCKS & SPEED / ERROR ANALYSIS */}
           {tab === 'mocks' && (
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-3">
@@ -838,7 +1079,6 @@ export default function PrepOS() {
                 ))}
               </div>
 
-              {/* Quantified Question Inputs */}
               <div className="grid grid-cols-4 gap-2">
                 <input type="number" placeholder="Total Qs" value={tForm.totalQ} onChange={e => setTForm(f => ({ ...f, totalQ: e.target.value }))} className="bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-2 text-xs placeholder-slate-600 text-slate-200" />
                 <input type="number" placeholder="Correct" value={tForm.correctQ} onChange={e => setTForm(f => ({ ...f, correctQ: e.target.value }))} className="bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-2 text-xs placeholder-slate-600 text-emerald-400 font-mono" />
@@ -903,7 +1143,7 @@ export default function PrepOS() {
             </div>
           )}
 
-          {/* TAB 5: ANALYTICS */}
+          {/* TAB 6: ANALYTICS */}
           {tab === 'analytics' && (
             <div>
               <div className="flex gap-2 mb-4 flex-wrap">
@@ -945,7 +1185,6 @@ export default function PrepOS() {
                 </div>
               )}
 
-              {/* Active Recall SRS Subtab */}
               {subtab === 'srs' && (
                 <div className="space-y-2">
                   <div className="text-xs text-slate-500 font-mono mb-2">active recall queue &bull; recall core trap before checking answer</div>
@@ -1010,7 +1249,7 @@ export default function PrepOS() {
             </div>
           )}
 
-          {/* TAB 6: ANALYSIS BANK (WITH FOR/AGAINST SSB ARGUMENTS) */}
+          {/* TAB 7: ANALYSIS BANK */}
           {tab === 'analysis' && (
             <div className="space-y-4">
               <div className="text-xs text-slate-500 font-mono mb-1">structured analytical synthesis for descriptive papers & ssb lecturettes</div>
@@ -1048,7 +1287,7 @@ export default function PrepOS() {
             </div>
           )}
 
-          {/* TAB 7: SECTIONED CURRENT AFFAIRS (WITH DIRECT 'ANALYZE' ACTION) */}
+          {/* TAB 8: CURRENT AFFAIRS */}
           {tab === 'feed' && (
             <div className="space-y-6">
               <div>
@@ -1102,7 +1341,7 @@ export default function PrepOS() {
             </div>
           )}
 
-          {/* TAB 8: AUDIT LOG */}
+          {/* TAB 9: AUDIT LOG */}
           {tab === 'audit' && (
             <div className="space-y-1.5">
               {audit.length === 0 && <div className="text-sm text-slate-500 text-center py-8">no activity logged yet</div>}
@@ -1115,7 +1354,7 @@ export default function PrepOS() {
             </div>
           )}
 
-          {/* TAB 9: BOOKS */}
+          {/* TAB 10: BOOKS */}
           {tab === 'books' && (
             <div className="space-y-3">
               <div className="text-xs text-slate-500 font-mono mb-2">systems thinking and mental models library</div>
