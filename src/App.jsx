@@ -3,9 +3,10 @@ import {
   Plus, Target, Layers, Trash2, Check, X, BookOpen, ClipboardList, 
   ListChecks, Activity, Download, Upload, Flame, Newspaper, Brain, 
   ArrowRight, Clock, AlertTriangle, Eye, EyeOff, SpellCheck, RotateCcw,
-  BookMarked, FlameKindling, Sparkles, Swords, Loader2
+  BookMarked, FlameKindling, Sparkles, Swords, Loader2, Play
 } from 'lucide-react';
 import { getKey, setKey } from './supabaseClient';
+import MockTestEngine from './MockTestEngine';
 
 const EXAM_DATES = { AFCAT: '2027-01-31', CDS: '2027-04-11', CAPF: '2027-07-15', CGL: '2027-08-15' };
 const SUBJECTS = ['Reasoning', 'Quant', 'Polity', 'History', 'Geography', 'Science', 'Economy', 'Current Affairs', 'English', 'Writing'];
@@ -387,6 +388,9 @@ export default function PrepOS() {
   const [feed, setFeed] = useState({ sections: {}, error: null, loadingFeed: true });
   const [revealedSrs, setRevealedSrs] = useState({});
 
+  // Mock Mode Switch ('in-app' | 'external-log')
+  const [mockMode, setMockMode] = useState('in-app');
+
   // Vocab State
   const [rawWordsInput, setRawWordsInput] = useState('');
   const [rawIdiomsInput, setRawIdiomsInput] = useState('');
@@ -396,7 +400,7 @@ export default function PrepOS() {
 
   // AI Agent States
   const [loadingAgent, setLoadingAgent] = useState(false);
-  const [activeDrill, setActiveDrill] = useState(null); // 5-MCQ Drill Object
+  const [activeDrill, setActiveDrill] = useState(null);
   const [drillAnswers, setDrillAnswers] = useState({});
   const [sparringResult, setSparringResult] = useState(null);
 
@@ -535,8 +539,14 @@ export default function PrepOS() {
   }
 
   // --- Mocks with Speed & Diagnostic Forensics ---
+  const initialSubject = SUBJECTS[0];
+  const initialMatchRes = RESOURCES.find(r => r.subject?.toLowerCase() === initialSubject.toLowerCase() || r.id?.toLowerCase() === initialSubject.toLowerCase());
+  const initialFirstChap = initialMatchRes && initialMatchRes.chapters.length > 0 ? initialMatchRes.chapters[0].name : '';
+
   const [tForm, setTForm] = useState({ 
-    subject: SUBJECTS[0], topic: '', exams: [], 
+    subject: initialSubject, 
+    topic: initialFirstChap, 
+    exams: [], 
     totalQ: '', correctQ: '', wrongQ: '', time: '', 
     predicted: '', errorType: '', isMock: false, strategy: 'merit', 
     benchmark: '', memoryTrap: '' 
@@ -545,14 +555,15 @@ export default function PrepOS() {
   
   function toggleExam(ex) { setTForm(f => ({ ...f, exams: f.exams.includes(ex) ? f.exams.filter(x => x !== ex) : [...f.exams, ex] })); }
   
-  function submitTopic() {
-    const total = Number(tForm.totalQ) || 0;
-    const correct = Number(tForm.correctQ) || 0;
-    const wrong = Number(tForm.wrongQ) || 0;
-    const timeSpent = Number(tForm.time) || 0;
+  function submitTopic(customPayload = null) {
+    const sourceData = customPayload || tForm;
+    const total = Number(sourceData.totalQ) || 0;
+    const correct = Number(sourceData.correctQ) || 0;
+    const wrong = Number(sourceData.wrongQ) || 0;
+    const timeSpent = Number(sourceData.time) || 0;
 
-    if (!tForm.topic.trim() || tForm.exams.length === 0 || total === 0) { 
-      setTError('Enter topic, exam(s), and valid question metrics.'); 
+    if (!sourceData.topic.trim() || sourceData.exams.length === 0 || total === 0) { 
+      if (!customPayload) setTError('Enter topic, exam(s), and valid question metrics.'); 
       return; 
     }
 
@@ -565,28 +576,28 @@ export default function PrepOS() {
     const entry = { 
       id: Date.now(), 
       date: todayStr(), 
-      subject: tForm.subject, 
-      topic: tForm.topic.trim(), 
-      exams: tForm.exams, 
+      subject: sourceData.subject, 
+      topic: sourceData.topic.trim(), 
+      exams: sourceData.exams, 
       totalQ: total,
       correctQ: correct,
       wrongQ: wrong,
       accuracy, 
-      predicted: Number(tForm.predicted) || accuracy, 
+      predicted: Number(sourceData.predicted) || accuracy, 
       time: timeSpent, 
       secPerCorrect,
       netScore: Number(netScore.toFixed(2)),
-      errorType: tForm.errorType, 
-      isMock: tForm.isMock, 
-      strategy: tForm.strategy, 
-      benchmark: tForm.benchmark ? Number(tForm.benchmark) : null,
-      memoryTrap: tForm.memoryTrap.trim()
+      errorType: sourceData.errorType || '', 
+      isMock: sourceData.isMock || false, 
+      strategy: sourceData.strategy || 'merit', 
+      benchmark: sourceData.benchmark ? Number(sourceData.benchmark) : null,
+      memoryTrap: (sourceData.memoryTrap || '').trim()
     };
 
     const next = [entry, ...topics];
     setTopics(next); setKey('topics', next);
 
-    const key = tForm.subject + '::' + entry.topic;
+    const key = sourceData.subject + '::' + entry.topic;
     const cur = srs[key] || { box: 0 };
     let box = entry.accuracy >= 80 ? Math.min(cur.box + 1, SRS_INTERVALS.length - 1) : entry.accuracy < 50 ? 0 : cur.box;
     const nextSrs = { 
@@ -594,7 +605,7 @@ export default function PrepOS() {
       [key]: { 
         box, 
         lastSeen: entry.date, 
-        subject: tForm.subject, 
+        subject: sourceData.subject, 
         topic: entry.topic,
         memoryTrap: entry.memoryTrap || cur.memoryTrap || ''
       } 
@@ -602,7 +613,9 @@ export default function PrepOS() {
     setSrs(nextSrs); setKey('srs', nextSrs);
 
     pushAudit(`${entry.isMock ? 'Mock' : 'Practice'} logged — ${entry.subject}/${entry.topic} (${entry.accuracy}% acc)`);
-    setTForm({ subject: SUBJECTS[0], topic: '', exams: [], totalQ: '', correctQ: '', wrongQ: '', time: '', predicted: '', errorType: '', isMock: false, strategy: 'merit', benchmark: '', memoryTrap: '' });
+    if (!customPayload) {
+      setTForm({ subject: initialSubject, topic: initialFirstChap, exams: [], totalQ: '', correctQ: '', wrongQ: '', time: '', predicted: '', errorType: '', isMock: false, strategy: 'merit', benchmark: '', memoryTrap: '' });
+    }
   }
   function deleteTopic(id) { const next = topics.filter(t => t.id !== id); setTopics(next); setKey('topics', next); }
 
@@ -1138,7 +1151,7 @@ export default function PrepOS() {
             </div>
           )}
 
-          {/* TAB 4: 3-STAGE REVISION CHECKLIST (WITH FORENSIC WEAK BLINKING BADGES) */}
+          {/* TAB 4: 3-STAGE REVISION CHECKLIST */}
           {tab === 'checklist' && (
             <div className="space-y-6">
               <div className="text-xs text-slate-500 font-mono flex items-center justify-between">
@@ -1214,58 +1227,114 @@ export default function PrepOS() {
             </div>
           )}
 
-          {/* TAB 5: MOCKS & SPEED / ERROR ANALYSIS */}
+          {/* TAB 5: MOCKS & SPEED (DUAL-MODE ENGINE) */}
           {tab === 'mocks' && (
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <select value={tForm.subject} onChange={e => setTForm(f => ({ ...f, subject: e.target.value }))} className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200">{SUBJECTS.map(s => <option key={s}>{s}</option>)}</select>
-                <input placeholder="topic / test series code" value={tForm.topic} onChange={e => setTForm(f => ({ ...f, topic: e.target.value }))} className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm placeholder-slate-600 text-slate-200" />
-              </div>
-
-              <div className="flex gap-2 flex-wrap">
-                {EXAMS.map(ex => (
-                  <button key={ex} onClick={() => toggleExam(ex)} className={`px-3 py-1.5 rounded-lg text-xs font-mono border transition ${tForm.exams.includes(ex) ? 'bg-teal-950 border-teal-600 text-teal-300' : 'bg-slate-900 border-slate-700 text-slate-400'}`}>
-                    {ex}
-                  </button>
-                ))}
-              </div>
-
-              <div className="grid grid-cols-4 gap-2">
-                <input type="number" placeholder="Total Qs" value={tForm.totalQ} onChange={e => setTForm(f => ({ ...f, totalQ: e.target.value }))} className="bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-2 text-xs placeholder-slate-600 text-slate-200" />
-                <input type="number" placeholder="Correct" value={tForm.correctQ} onChange={e => setTForm(f => ({ ...f, correctQ: e.target.value }))} className="bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-2 text-xs placeholder-slate-600 text-emerald-400 font-mono" />
-                <input type="number" placeholder="Wrong" value={tForm.wrongQ} onChange={e => setTForm(f => ({ ...f, wrongQ: e.target.value }))} className="bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-2 text-xs placeholder-slate-600 text-red-400 font-mono" />
-                <input type="number" placeholder="Time (min)" value={tForm.time} onChange={e => setTForm(f => ({ ...f, time: e.target.value }))} className="bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-2 text-xs placeholder-slate-600 text-slate-200" />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <input type="number" placeholder="Predicted Accuracy %" value={tForm.predicted} onChange={e => setTForm(f => ({ ...f, predicted: e.target.value }))} className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs placeholder-slate-600 text-slate-200" />
-                <input placeholder="Memory Trap / Active Recall Cue" value={tForm.memoryTrap} onChange={e => setTForm(f => ({ ...f, memoryTrap: e.target.value }))} className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs placeholder-slate-600 text-slate-200" />
-              </div>
-
-              <div className="flex gap-2 flex-wrap">
-                {ERROR_TYPES.map(et => (
-                  <button key={et} onClick={() => setTForm(f => ({ ...f, errorType: f.errorType === et ? '' : et }))} className={`px-2.5 py-1 rounded-lg text-xs font-mono border transition ${tForm.errorType === et ? 'bg-amber-950 border-amber-600 text-amber-300' : 'bg-slate-900 border-slate-700 text-slate-400'}`}>
-                    {et}
-                  </button>
-                ))}
-              </div>
-
-              <div className="flex items-center gap-3 flex-wrap">
-                <button onClick={() => setTForm(f => ({ ...f, isMock: !f.isMock }))} className={`px-3 py-1.5 rounded-lg text-xs font-mono border transition ${tForm.isMock ? 'bg-teal-950 border-teal-600 text-teal-300' : 'bg-slate-900 border-slate-700 text-slate-400'}`}>
-                  Full Mock Exam
+              <div className="flex gap-2 p-1 bg-slate-900 border border-slate-800 rounded-xl">
+                <button
+                  onClick={() => setMockMode('in-app')}
+                  className={`flex-1 py-2 rounded-lg text-xs font-mono font-medium transition flex items-center justify-center gap-1.5 ${
+                    mockMode === 'in-app' ? 'bg-teal-950 text-teal-300 border border-teal-700' : 'text-slate-500 hover:text-slate-300'
+                  }`}
+                >
+                  <Play size={13} />
+                  <span>Take Test In-App (Real-Time Simulator)</span>
                 </button>
-                {tForm.isMock && (
-                  <>
-                    <select value={tForm.strategy} onChange={e => setTForm(f => ({ ...f, strategy: e.target.value }))} className="bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-slate-200">{STRATEGIES.map(s => <option key={s}>{s}</option>)}</select>
-                    <input type="number" placeholder="topper benchmark %" value={tForm.benchmark} onChange={e => setTForm(f => ({ ...f, benchmark: e.target.value }))} className="bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-xs w-36 placeholder-slate-600 text-slate-200" />
-                  </>
-                )}
+                <button
+                  onClick={() => setMockMode('external-log')}
+                  className={`flex-1 py-2 rounded-lg text-xs font-mono font-medium transition flex items-center justify-center gap-1.5 ${
+                    mockMode === 'external-log' ? 'bg-teal-950 text-teal-300 border border-teal-700' : 'text-slate-500 hover:text-slate-300'
+                  }`}
+                >
+                  <Plus size={13} />
+                  <span>Log External Mock Score</span>
+                </button>
               </div>
 
-              {tError && <div className="text-xs text-red-400 font-mono">{tError}</div>}
-              <button onClick={submitTopic} className="w-full bg-teal-600 hover:bg-teal-500 text-slate-950 font-medium rounded-lg py-2.5 text-sm transition">log performance metrics</button>
+              {/* IN-APP REAL-TIME TEST ENGINE (With RESOURCES Passed Down) */}
+              {mockMode === 'in-app' ? (
+                <MockTestEngine 
+                  subjects={SUBJECTS} 
+                  exams={EXAMS} 
+                  resources={RESOURCES}
+                  onCompleteTest={(attempt) => submitTopic(attempt)} 
+                />
+              ) : (
+                /* MANUAL EXTERNAL LOG ENGINE (With Dynamic Subject/Chapter Dropdowns) */
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-3">
+                    <select 
+                      value={tForm.subject} 
+                      onChange={e => {
+                        const newSubj = e.target.value;
+                        const matchRes = RESOURCES.find(r => r.subject?.toLowerCase() === newSubj.toLowerCase() || r.id?.toLowerCase() === newSubj.toLowerCase());
+                        const firstChap = matchRes && matchRes.chapters.length > 0 ? matchRes.chapters[0].name : '';
+                        setTForm(f => ({ ...f, subject: newSubj, topic: firstChap }));
+                      }} 
+                      className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200"
+                    >
+                      {SUBJECTS.map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
 
+                    <select 
+                      value={tForm.topic} 
+                      onChange={e => setTForm(f => ({ ...f, topic: e.target.value }))}
+                      className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200"
+                    >
+                      {(RESOURCES.find(r => r.subject?.toLowerCase() === tForm.subject.toLowerCase() || r.id?.toLowerCase() === tForm.subject.toLowerCase())?.chapters || []).map(chap => (
+                        <option key={chap.name} value={chap.name}>{chap.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="flex gap-2 flex-wrap">
+                    {EXAMS.map(ex => (
+                      <button key={ex} onClick={() => toggleExam(ex)} className={`px-3 py-1.5 rounded-lg text-xs font-mono border transition ${tForm.exams.includes(ex) ? 'bg-teal-950 border-teal-600 text-teal-300' : 'bg-slate-900 border-slate-700 text-slate-400'}`}>
+                        {ex}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="grid grid-cols-4 gap-2">
+                    <input type="number" placeholder="Total Qs" value={tForm.totalQ} onChange={e => setTForm(f => ({ ...f, totalQ: e.target.value }))} className="bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-2 text-xs placeholder-slate-600 text-slate-200" />
+                    <input type="number" placeholder="Correct" value={tForm.correctQ} onChange={e => setTForm(f => ({ ...f, correctQ: e.target.value }))} className="bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-2 text-xs placeholder-slate-600 text-emerald-400 font-mono" />
+                    <input type="number" placeholder="Wrong" value={tForm.wrongQ} onChange={e => setTForm(f => ({ ...f, wrongQ: e.target.value }))} className="bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-2 text-xs placeholder-slate-600 text-red-400 font-mono" />
+                    <input type="number" placeholder="Time (min)" value={tForm.time} onChange={e => setTForm(f => ({ ...f, time: e.target.value }))} className="bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-2 text-xs placeholder-slate-600 text-slate-200" />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <input type="number" placeholder="Predicted Accuracy %" value={tForm.predicted} onChange={e => setTForm(f => ({ ...f, predicted: e.target.value }))} className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs placeholder-slate-600 text-slate-200" />
+                    <input placeholder="Memory Trap / Active Recall Cue" value={tForm.memoryTrap} onChange={e => setTForm(f => ({ ...f, memoryTrap: e.target.value }))} className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs placeholder-slate-600 text-slate-200" />
+                  </div>
+
+                  <div className="flex gap-2 flex-wrap">
+                    {ERROR_TYPES.map(et => (
+                      <button key={et} onClick={() => setTForm(f => ({ ...f, errorType: f.errorType === et ? '' : et }))} className={`px-2.5 py-1 rounded-lg text-xs font-mono border transition ${tForm.errorType === et ? 'bg-amber-950 border-amber-600 text-amber-300' : 'bg-slate-900 border-slate-700 text-slate-400'}`}>
+                        {et}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <button onClick={() => setTForm(f => ({ ...f, isMock: !f.isMock }))} className={`px-3 py-1.5 rounded-lg text-xs font-mono border transition ${tForm.isMock ? 'bg-teal-950 border-teal-600 text-teal-300' : 'bg-slate-900 border-slate-700 text-slate-400'}`}>
+                      Full Mock Exam
+                    </button>
+                    {tForm.isMock && (
+                      <>
+                        <select value={tForm.strategy} onChange={e => setTForm(f => ({ ...f, strategy: e.target.value }))} className="bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-slate-200">{STRATEGIES.map(s => <option key={s}>{s}</option>)}</select>
+                        <input type="number" placeholder="topper benchmark %" value={tForm.benchmark} onChange={e => setTForm(f => ({ ...f, benchmark: e.target.value }))} className="bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-xs w-36 placeholder-slate-600 text-slate-200" />
+                      </>
+                    )}
+                  </div>
+
+                  {tError && <div className="text-xs text-red-400 font-mono">{tError}</div>}
+                  <button onClick={() => submitTopic()} className="w-full bg-teal-600 hover:bg-teal-500 text-slate-950 font-medium rounded-lg py-2.5 text-sm transition">log performance metrics</button>
+                </div>
+              )}
+
+              {/* Mocks Attempt History Bank */}
               <div className="pt-3 border-t border-slate-800 space-y-2">
+                <div className="text-xs font-mono text-slate-500">Attempted Mocks & Practice History</div>
                 {topics.slice(0, 8).map(t => (
                   <div key={t.id} className="text-xs bg-slate-900 rounded-xl p-3 border border-slate-800/80">
                     <div className="flex justify-between items-start mb-1.5">
@@ -1294,7 +1363,7 @@ export default function PrepOS() {
             </div>
           )}
 
-          {/* TAB 6: ANALYTICS & DIAGNOSTIC FORENSICS (WITH AI TRAP DRILLS) */}
+          {/* TAB 6: ANALYTICS & DIAGNOSTIC FORENSICS */}
           {tab === 'analytics' && (
             <div>
               <div className="flex gap-2 mb-4 flex-wrap">
@@ -1305,7 +1374,6 @@ export default function PrepOS() {
                 ))}
               </div>
 
-              {/* ACTIVE AI DIAGNOSTIC DRILL MODAL */}
               {activeDrill && (
                 <div className="bg-slate-900 border-2 border-teal-500/80 rounded-2xl p-5 mb-5 space-y-4 animate-fade-in shadow-2xl">
                   <div className="flex justify-between items-start border-b border-slate-800 pb-3">
@@ -1376,7 +1444,6 @@ export default function PrepOS() {
                 </div>
               )}
 
-              {/* SUBTAB: DIAGNOSTICS & EXACT READING PRESCRIPTIONS */}
               {subtab === 'diagnostics' && (
                 <div className="space-y-4">
                   <div className="text-xs text-slate-500 font-mono">
@@ -1419,7 +1486,6 @@ export default function PrepOS() {
                             )}
                           </div>
 
-                          {/* Trigger AI Diagnostic 5-Trap Drill */}
                           <button
                             disabled={loadingAgent}
                             onClick={() => triggerAgentDrill(p)}
@@ -1535,7 +1601,7 @@ export default function PrepOS() {
             </div>
           )}
 
-          {/* TAB 7: ANALYSIS BANK (WITH AI SSB SPARRING AGENT) */}
+          {/* TAB 7: ANALYSIS BANK */}
           {tab === 'analysis' && (
             <div className="space-y-4">
               <div className="text-xs text-slate-500 font-mono mb-1">structured analytical synthesis for descriptive papers & ssb lecturettes</div>
@@ -1551,7 +1617,6 @@ export default function PrepOS() {
               
               <button onClick={submitAnalysis} className="w-full bg-teal-600 hover:bg-teal-500 text-slate-950 font-medium rounded-lg py-2.5 text-sm transition">save structured analysis</button>
 
-              {/* ACTIVE SSB SPARRING OUTPUT MODAL */}
               {sparringResult && (
                 <div className="bg-slate-900 border-2 border-indigo-500/80 rounded-2xl p-5 my-4 space-y-4 shadow-2xl animate-fade-in">
                   <div className="flex justify-between items-start border-b border-slate-800 pb-3">
