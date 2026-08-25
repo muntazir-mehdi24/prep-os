@@ -3,7 +3,7 @@ import {
   Plus, Target, Layers, Trash2, Check, X, BookOpen, ClipboardList, 
   ListChecks, Activity, Download, Upload, Flame, Newspaper, Brain, 
   ArrowRight, Clock, AlertTriangle, Eye, EyeOff, SpellCheck, RotateCcw,
-  BookMarked, FlameKindling, Sparkles, Swords, Loader2, Play
+  BookMarked, FlameKindling, Sparkles, Swords, Loader2, Play, ThumbsUp, ThumbsDown
 } from 'lucide-react';
 import { getKey, setKey } from './supabaseClient';
 import MockTestEngine from './MockTestEngine';
@@ -385,10 +385,12 @@ export default function PrepOS() {
   const [analyses, setAnalyses] = useState([]);
   const [dailyTarget, setDailyTarget] = useState(6.0);
   const [vocabList, setVocabList] = useState([]);
-  const [feed, setFeed] = useState({ sections: {}, error: null, loadingFeed: true });
+  const [feedArticles, setFeedArticles] = useState([]);
+  const [feedLoading, setFeedLoading] = useState(true);
+  const [feedError, setFeedError] = useState(null);
   const [revealedSrs, setRevealedSrs] = useState({});
 
-  // Mock Mode Switch ('in-app' | 'external-log')
+  // Mock Mode Switch
   const [mockMode, setMockMode] = useState('in-app');
 
   // Vocab State
@@ -418,17 +420,47 @@ export default function PrepOS() {
       setVocabList(await getKey('vocabList', []));
       setLoading(false);
     })();
-    loadFeed();
+    loadIntelligenceFeed();
   }, []);
 
-  async function loadFeed() {
+  async function loadIntelligenceFeed() {
+    setFeedLoading(true);
     try {
       const res = await fetch('/.netlify/functions/feed');
-      if (!res.ok) throw new Error('feed unavailable');
+      if (!res.ok) throw new Error('Intelligence feed service unavailable');
       const data = await res.json();
-      setFeed({ sections: data.sections || {}, error: null, loadingFeed: false });
+      setFeedArticles(data.articles || []);
+      setFeedError(null);
     } catch (e) {
-      setFeed({ sections: {}, error: 'Live feed unavailable. Ensure serverless function is deployed.', loadingFeed: false });
+      setFeedArticles([]);
+      setFeedError('Live feed unavailable. Ensure Netlify serverless function is configured.');
+    } finally {
+      setFeedLoading(false);
+    }
+  }
+
+  async function handleArticleFeedback(article, action) {
+    // Optimistically update UI
+    if (action === 'dismiss') {
+      setFeedArticles(prev => prev.filter(a => a.id !== article.id));
+    } else {
+      setFeedArticles(prev => prev.map(a => a.id === article.id ? { ...a, status: 'bookmarked' } : a));
+    }
+
+    try {
+      await fetch('/.netlify/functions/feed', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          articleId: article.id,
+          action,
+          subject: article.mapped_subject,
+          topic: article.mapped_chapter
+        })
+      });
+      pushAudit(`Feedback logged for ${article.mapped_subject} (${action})`);
+    } catch (e) {
+      console.error('Feedback sync failed', e);
     }
   }
 
@@ -640,7 +672,8 @@ export default function PrepOS() {
     setAForm({
       ...emptyAnalysis,
       topic: item.title,
-      source: item.link
+      source: item.link,
+      mechanism: item.analytical_hook || ''
     });
     setTab('analysis');
   }
@@ -1251,7 +1284,6 @@ export default function PrepOS() {
                 </button>
               </div>
 
-              {/* IN-APP REAL-TIME TEST ENGINE (With RESOURCES Passed Down) */}
               {mockMode === 'in-app' ? (
                 <MockTestEngine 
                   subjects={SUBJECTS} 
@@ -1260,7 +1292,6 @@ export default function PrepOS() {
                   onCompleteTest={(attempt) => submitTopic(attempt)} 
                 />
               ) : (
-                /* MANUAL EXTERNAL LOG ENGINE (With Dynamic Subject/Chapter Dropdowns) */
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-3">
                     <select 
@@ -1689,56 +1720,117 @@ export default function PrepOS() {
             </div>
           )}
 
-          {/* TAB 8: CURRENT AFFAIRS */}
+          {/* TAB 8: CURRENT AFFAIRS (WITH 2-AXIS SCORES & ADAPTIVE FEEDBACK LOOP) */}
           {tab === 'feed' && (
-            <div className="space-y-6">
-              <div>
-                <div className="text-xs text-slate-500 font-mono mb-3">5 curated topics per domain &bull; &le;30 days old &bull; click 'analyze' to bridge directly</div>
-                {feed.loadingFeed && <div className="text-sm text-slate-500 py-4">loading filtered intelligence feeds...</div>}
-                {feed.error && <div className="text-xs text-amber-400 bg-amber-950/30 rounded-lg px-3 py-2">{feed.error}</div>}
+            <div className="space-y-4">
+              <div className="bg-slate-900/80 p-3.5 rounded-xl border border-slate-800 flex justify-between items-center">
+                <div>
+                  <div className="text-xs font-mono uppercase text-teal-400 font-semibold flex items-center gap-1.5">
+                    <Newspaper size={14} />
+                    <span>2-Axis Intelligence Scorer & Adaptive Feedback Loop</span>
+                  </div>
+                  <div className="text-[11px] text-slate-500 font-mono mt-0.5">
+                    $S_\text{static}$ (NCERT/Standard Texts) &bull; $S_\text{exam}$ (UPSC/SSC Pattern) &bull; Upvote/Dismiss updates weekly model weights
+                  </div>
+                </div>
+                <button
+                  onClick={loadIntelligenceFeed}
+                  className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded text-xs font-mono border border-slate-700 transition flex items-center gap-1"
+                >
+                  <RotateCcw size={11} />
+                  <span>Refresh Digest</span>
+                </button>
+              </div>
 
-                <div className="space-y-5">
-                  {Object.entries(feed.sections).map(([sectionName, articles]) => (
-                    <div key={sectionName} className="bg-slate-900 rounded-xl p-4 border border-slate-800">
-                      <div className="flex justify-between items-center mb-3">
-                        <div className="text-xs font-mono uppercase tracking-wider text-teal-400 font-medium">{sectionName}</div>
-                        <div className="text-[11px] text-slate-500 font-mono">top {articles.length}</div>
+              {feedLoading && <div className="text-xs text-slate-500 font-mono text-center py-8">Fetching & scoring intelligence feeds with AI taxonomies...</div>}
+              {feedError && <div className="text-xs text-rose-400 font-mono bg-rose-950/30 p-3 rounded-lg border border-rose-800/60">{feedError}</div>}
+
+              {!feedLoading && feedArticles.length === 0 && (
+                <div className="text-xs text-slate-600 font-mono text-center py-10">No scored articles found in digest cache. Click Refresh Digest.</div>
+              )}
+
+              <div className="space-y-3">
+                {feedArticles.map(item => (
+                  <div key={item.id || item.link} className="bg-slate-900 rounded-xl p-4 border border-slate-800/80 space-y-3">
+                    {/* Header Row: Source, Type Badge, and Date */}
+                    <div className="flex justify-between items-center text-[11px] font-mono">
+                      <div className="flex items-center gap-2">
+                        <span className="text-slate-400 bg-slate-950 px-2 py-0.5 rounded border border-slate-800 font-semibold">{item.source}</span>
+                        <span className={`px-2 py-0.5 rounded uppercase font-semibold ${
+                          item.article_type === 'editorial' ? 'bg-indigo-950 text-indigo-300 border border-indigo-800' : 'bg-slate-950 text-slate-400 border border-slate-800'
+                        }`}>
+                          {item.article_type === 'editorial' ? 'Editorial / Analytical' : 'Factual News'}
+                        </span>
                       </div>
-                      
-                      <div className="space-y-2">
-                        {articles.length === 0 ? (
-                          <div className="text-xs text-slate-600 py-1">no articles found within 30 days</div>
-                        ) : (
-                          articles.map((item, idx) => (
-                            <div
-                              key={idx}
-                              className="bg-slate-950/70 rounded-lg px-3 py-2.5 border border-slate-800/60 flex items-start justify-between gap-3 group"
-                            >
-                              <a href={item.link} target="_blank" rel="noreferrer" className="flex-1">
-                                <div className="text-xs text-slate-200 group-hover:text-teal-300 line-clamp-2 leading-relaxed">
-                                  {item.title}
-                                </div>
-                                <div className="flex items-center gap-2 mt-1 text-[10px] text-slate-500 font-mono">
-                                  <span className="text-slate-400 bg-slate-900 px-1.5 py-0.5 rounded border border-slate-800">{item.source}</span>
-                                  <span>•</span>
-                                  <span>{item.date}</span>
-                                </div>
-                              </a>
-                              <button 
-                                onClick={() => sendFeedToAnalysis(item)}
-                                className="px-2 py-1 bg-slate-900 hover:bg-teal-950 text-slate-400 hover:text-teal-300 border border-slate-700 hover:border-teal-700 rounded text-[10px] font-mono whitespace-nowrap flex items-center gap-1 transition"
-                                title="Send headline directly to Analysis Bank"
-                              >
-                                <span>Analyze</span>
-                                <ArrowRight size={10} />
-                              </button>
-                            </div>
-                          ))
-                        )}
+                      <span className="text-slate-500">{item.pub_date}</span>
+                    </div>
+
+                    {/* Headline Link */}
+                    <a href={item.link} target="_blank" rel="noreferrer" className="block text-sm text-slate-100 hover:text-teal-300 font-medium leading-snug transition">
+                      {item.title}
+                    </a>
+
+                    {/* 2-Axis Score Indicators */}
+                    <div className="grid grid-cols-2 gap-2 text-xs font-mono">
+                      <div className="bg-slate-950 p-2 rounded-lg border border-slate-800 flex justify-between items-center">
+                        <span className="text-slate-500 text-[11px]">Static Syllabus ($S_\text{static}$):</span>
+                        <span className={`font-semibold ${item.static_relevance_score >= 8 ? 'text-emerald-400' : 'text-amber-400'}`}>
+                          {item.static_relevance_score}/10
+                        </span>
+                      </div>
+                      <div className="bg-slate-950 p-2 rounded-lg border border-slate-800 flex justify-between items-center">
+                        <span className="text-slate-500 text-[11px]">Exam Pattern ($S_\text{exam}$):</span>
+                        <span className={`font-semibold ${item.exam_pattern_score >= 8 ? 'text-emerald-400' : 'text-amber-400'}`}>
+                          {item.exam_pattern_score}/10
+                        </span>
                       </div>
                     </div>
-                  ))}
-                </div>
+
+                    {/* Mapped Syllabus Taxonomy & Analytical Hook */}
+                    <div className="bg-slate-950/70 p-2.5 rounded-lg border border-slate-800/80 text-xs space-y-1">
+                      <div className="text-teal-400 font-mono text-[11px]">
+                        Mapped Node: <span className="text-slate-200 font-sans">{item.mapped_subject} &bull; {item.mapped_chapter}</span>
+                      </div>
+                      {item.analytical_hook && (
+                        <div className="text-slate-400 text-[11px] leading-relaxed">
+                          <strong className="text-slate-300 font-mono">Analytical Hook:</strong> {item.analytical_hook}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Action Bar: Analyze Bridge & Feedback Loops */}
+                    <div className="flex justify-between items-center pt-1 border-t border-slate-800/60">
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleArticleFeedback(item, 'upvote')}
+                          className={`px-2 py-1 rounded text-[11px] font-mono border transition flex items-center gap-1 ${
+                            item.status === 'bookmarked' ? 'bg-emerald-950 text-emerald-300 border-emerald-700' : 'bg-slate-950 text-slate-400 border-slate-800 hover:text-emerald-400'
+                          }`}
+                          title="High Relevance (Reinforce Weight)"
+                        >
+                          <ThumbsUp size={11} />
+                          <span>Relevant</span>
+                        </button>
+                        <button
+                          onClick={() => handleArticleFeedback(item, 'dismiss')}
+                          className="px-2 py-1 bg-slate-950 hover:bg-rose-950 text-slate-400 hover:text-rose-400 border border-slate-800 hover:border-rose-800 rounded text-[11px] font-mono transition flex items-center gap-1"
+                          title="Irrelevant / Noise (Downweight Category)"
+                        >
+                          <ThumbsDown size={11} />
+                          <span>Dismiss</span>
+                        </button>
+                      </div>
+
+                      <button
+                        onClick={() => sendFeedToAnalysis(item)}
+                        className="px-3 py-1 bg-slate-950 hover:bg-teal-950 text-slate-300 hover:text-teal-300 border border-slate-800 hover:border-teal-700 rounded text-xs font-mono flex items-center gap-1.5 transition"
+                      >
+                        <span>Send to Analysis Bank</span>
+                        <ArrowRight size={11} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           )}
