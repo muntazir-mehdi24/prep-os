@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { 
   Plus, Target, Layers, Trash2, Check, X, BookOpen, ClipboardList, 
   ListChecks, Activity, Download, Upload, Flame, Newspaper, Brain, 
-  ArrowRight, Clock, AlertTriangle, Eye, EyeOff, SpellCheck, RotateCcw
+  ArrowRight, Clock, AlertTriangle, Eye, EyeOff, SpellCheck, RotateCcw,
+  BookMarked, FlameKindling, Sparkles, Swords, Loader2
 } from 'lucide-react';
 import { getKey, setKey } from './supabaseClient';
 
@@ -13,302 +14,320 @@ const ERROR_TYPES = ['conceptual', 'calculation', 'silly', 'time-pressure'];
 const SRS_INTERVALS = [1, 3, 7, 14, 30, 60];
 const STRATEGIES = ['merit', 'rank-1'];
 
-// Complete Superset Syllabus across AFCAT, CDS, CAPF, and SSC CGL
+// Complete Superset Syllabus mapped to authoritative standard textbooks
 const RESOURCES = [
   {
     id: 'polity',
-    name: 'Indian Polity & Governance (Laxmikant + Bare Acts)',
+    subject: 'Polity',
+    name: 'Indian Polity & Governance',
+    bookRef: 'M. Laxmikant — Indian Polity (7th Ed.)',
     chapters: [
-      { name: 'Historical Background & Constituent Assembly', tier1: true },
-      { name: 'Salient Features, Sources & Preamble', tier1: true },
-      { name: 'Union & its Territory (Articles 1-4)', tier1: false },
-      { name: 'Citizenship (Articles 5-11, CAA & NRC concepts)', tier1: false },
-      { name: 'Fundamental Rights (Articles 12-35 & Writs)', tier1: true },
-      { name: 'Directive Principles of State Policy (DPSP: 36-51)', tier1: true },
-      { name: 'Fundamental Duties (Article 51A & Committees)', tier1: true },
-      { name: 'Amendment of the Constitution & Basic Structure', tier1: true },
-      { name: 'Parliamentary vs Presidential & Federal Structure', tier1: false },
-      { name: 'Inter-State Relations & Centre-State Financial/Admin Ties', tier1: true },
-      { name: 'Emergency Provisions (Articles 352, 356, 360)', tier1: true },
-      { name: 'President: Election, Powers, Veto, Pardoning (Art 72)', tier1: true },
-      { name: 'Vice-President: Role & Powers', tier1: false },
-      { name: 'Prime Minister & Union Council of Ministers', tier1: false },
-      { name: 'Cabinet Committees & Secretariat', tier1: false },
-      { name: 'Parliament: Lok Sabha, Rajya Sabha & Speaker Powers', tier1: true },
-      { name: 'Parliamentary Proceedings, Motions, Bills & Budgeting', tier1: true },
-      { name: 'Parliamentary Committees (PAC, Estimates, CoPU)', tier1: true },
-      { name: 'Supreme Court: Jurisdiction, Writs & Landmark Cases', tier1: true },
-      { name: 'Judicial Review, Judicial Activism & PIL', tier1: true },
-      { name: 'Governor: Discretionary Powers & Ordinances', tier1: true },
-      { name: 'Chief Minister & State Council of Ministers', tier1: false },
-      { name: 'State Legislature: Assembly & Legislative Council', tier1: false },
-      { name: 'High Courts & Subordinate Courts', tier1: true },
-      { name: 'Tribunals (CAT, NGT & Armed Forces Tribunal AFT)', tier1: true },
-      { name: 'Panchayati Raj (73rd Constitutional Amendment Act)', tier1: true },
-      { name: 'Municipalities & Urban Local Bodies (74th CAA)', tier1: true },
-      { name: 'Constitutional Bodies: Election Commission & CAG', tier1: true },
-      { name: 'Constitutional Bodies: UPSC, SPSC & Finance Commission', tier1: true },
-      { name: 'Constitutional Bodies: National Commissions (SC, ST, OBC)', tier1: false },
-      { name: 'Non-Constitutional Bodies: NITI Aayog, NHRC, CIC, CVC, Lokpal', tier1: true },
-      { name: 'Special Provisions: Scheduled & Tribal Areas (5th & 6th Sched)', tier1: true },
-      { name: 'Official Language Provisions & Special Directives', tier1: false }
+      { name: 'Historical Background & Constituent Assembly', tier1: true, refChapter: 'Ch 1 & 2' },
+      { name: 'Salient Features, Sources & Preamble', tier1: true, refChapter: 'Ch 3 & 4' },
+      { name: 'Union & its Territory (Articles 1-4)', tier1: false, refChapter: 'Ch 5' },
+      { name: 'Citizenship (Articles 5-11, CAA & NRC concepts)', tier1: false, refChapter: 'Ch 6' },
+      { name: 'Fundamental Rights (Articles 12-35 & Writs)', tier1: true, refChapter: 'Ch 7' },
+      { name: 'Directive Principles of State Policy (DPSP: 36-51)', tier1: true, refChapter: 'Ch 8' },
+      { name: 'Fundamental Duties (Article 51A & Committees)', tier1: true, refChapter: 'Ch 9' },
+      { name: 'Amendment of the Constitution & Basic Structure', tier1: true, refChapter: 'Ch 10 & 11' },
+      { name: 'Parliamentary vs Presidential & Federal Structure', tier1: false, refChapter: 'Ch 12 & 13' },
+      { name: 'Inter-State Relations & Centre-State Financial/Admin Ties', tier1: true, refChapter: 'Ch 14 & 15' },
+      { name: 'Emergency Provisions (Articles 352, 356, 360)', tier1: true, refChapter: 'Ch 16' },
+      { name: 'President: Election, Powers, Veto, Pardoning (Art 72)', tier1: true, refChapter: 'Ch 17' },
+      { name: 'Vice-President: Role & Powers', tier1: false, refChapter: 'Ch 18' },
+      { name: 'Prime Minister & Union Council of Ministers', tier1: false, refChapter: 'Ch 19 & 20' },
+      { name: 'Cabinet Committees & Secretariat', tier1: false, refChapter: 'Ch 21' },
+      { name: 'Parliament: Lok Sabha, Rajya Sabha & Speaker Powers', tier1: true, refChapter: 'Ch 22 (Part I)' },
+      { name: 'Parliamentary Proceedings, Motions, Bills & Budgeting', tier1: true, refChapter: 'Ch 22 (Part II)' },
+      { name: 'Parliamentary Committees (PAC, Estimates, CoPU)', tier1: true, refChapter: 'Ch 23' },
+      { name: 'Supreme Court: Jurisdiction, Writs & Landmark Cases', tier1: true, refChapter: 'Ch 26' },
+      { name: 'Judicial Review, Judicial Activism & PIL', tier1: true, refChapter: 'Ch 27 & 28' },
+      { name: 'Governor: Discretionary Powers & Ordinances', tier1: true, refChapter: 'Ch 30' },
+      { name: 'Chief Minister & State Council of Ministers', tier1: false, refChapter: 'Ch 31 & 32' },
+      { name: 'State Legislature: Assembly & Legislative Council', tier1: false, refChapter: 'Ch 33' },
+      { name: 'High Courts & Subordinate Courts', tier1: true, refChapter: 'Ch 34 & 35' },
+      { name: 'Tribunals (CAT, NGT & Armed Forces Tribunal AFT)', tier1: true, refChapter: 'Ch 36' },
+      { name: 'Panchayati Raj (73rd Constitutional Amendment Act)', tier1: true, refChapter: 'Ch 38' },
+      { name: 'Municipalities & Urban Local Bodies (74th CAA)', tier1: true, refChapter: 'Ch 39' },
+      { name: 'Constitutional Bodies: Election Commission & CAG', tier1: true, refChapter: 'Ch 43 & 51' },
+      { name: 'Constitutional Bodies: UPSC, SPSC & Finance Commission', tier1: true, refChapter: 'Ch 44 & 45' },
+      { name: 'Constitutional Bodies: National Commissions (SC, ST, OBC)', tier1: false, refChapter: 'Ch 47-49' },
+      { name: 'Non-Constitutional Bodies: NITI Aayog, NHRC, CIC, CVC, Lokpal', tier1: true, refChapter: 'Ch 53-57' },
+      { name: 'Special Provisions: Scheduled & Tribal Areas (5th & 6th Sched)', tier1: true, refChapter: 'Ch 41' },
+      { name: 'Official Language Provisions & Special Directives', tier1: false, refChapter: 'Ch 61' }
     ]
   },
   {
     id: 'history',
-    name: 'Comprehensive History (Ancient, Medieval, Modern & Art-Culture)',
+    subject: 'History',
+    name: 'Comprehensive History & Culture',
+    bookRef: 'Spectrum Modern India (Rajiv Ahir) + NCERT Ancient/Medieval',
     chapters: [
-      { name: 'Prehistoric Period & Indus Valley Civilization (IVC)', tier1: true },
-      { name: 'Vedic Age: Early & Later Vedic Polity, Society & Texts', tier1: true },
-      { name: 'Buddhism & Jainism: Philosophy, Councils, Literature & Sects', tier1: true },
-      { name: 'Mahajanapadas, Magadha Rise & Mauryan Empire (Ashoka Edicts)', tier1: true },
-      { name: 'Post-Mauryan Dynasties: Sungas, Satavahanas, Kushans', tier1: false },
-      { name: 'Gupta Empire: Golden Age Administration, Science & Literature', tier1: true },
-      { name: 'Post-Gupta Period: Harshavardhana & Regional Kingdoms', tier1: false },
-      { name: 'Sangam Period & South Indian Dynasties (Cholas, Cheras, Pandyas)', tier1: true },
-      { name: 'Indian Art & Architecture: Temple Styles (Nagara, Dravida, Vesara)', tier1: true },
-      { name: 'Classical & Folk Dances, Music, Puppetry & UNESCO Sites', tier1: true },
-      { name: 'Early Medieval India, Tripartite Struggle & Arab Invasions', tier1: false },
-      { name: 'Delhi Sultanate: Slave, Khilji, Tughlaq, Sayyid, Lodi Dynasties', tier1: true },
-      { name: 'Sultanate Administration, Economy, Architecture & Iqta System', tier1: true },
-      { name: 'Vijayanagara & Bahmani Empires: Polity, Foreign Travelers, Art', tier1: true },
-      { name: 'Bhakti & Sufi Movements: Saints, Literature & Impact', tier1: true },
-      { name: 'Mughal Empire: Babur to Aurangzeb Policies & Battles', tier1: true },
-      { name: 'Mughal Administration: Mansabdari, Jagirdari & Land Revenue', tier1: true },
-      { name: 'Maratha Empire: Shivaji Administration, Chauth/Sardeshmukhi, Peshwas', tier1: true },
-      { name: 'Advent of European Powers & Carnatic Wars', tier1: false },
-      { name: 'British Expansion: Battle of Plassey, Buxar & Anglo-Mysore/Maratha Wars', tier1: true },
-      { name: 'British Administrative Systems: Subsidiary Alliance & Doctrine of Lapse', tier1: true },
-      { name: 'Economic Impact: Land Revenue (Zamindari, Ryotwari, Mahalwari) & Drain Theory', tier1: true },
-      { name: 'Tribal, Peasant & Civil Uprisings before 1857', tier1: true },
-      { name: 'Revolt of 1857: Causes, Leaders, Centers & Suppression', tier1: true },
-      { name: 'Socio-Religious Reform Movements (Raja Ram Mohan, Dayanand, Vivekananda)', tier1: true },
-      { name: 'Development of Indian Press, Civil Services & Modern Education', tier1: true },
-      { name: 'Foundation of INC, Safety Valve Theory & Early Political Associations', tier1: false },
-      { name: 'Moderate Phase & Economic Nationalism (1885–1905)', tier1: false },
-      { name: 'Partition of Bengal (1905), Swadeshi Movement & Surat Split (1907)', tier1: true },
-      { name: 'Morley-Minto Reforms (1909), Ghadar Party & Home Rule League', tier1: true },
-      { name: 'Gandhi Arrival, Champaran, Kheda, Ahmedabad & Rowlatt Satyagraha', tier1: true },
-      { name: 'Non-Cooperation Movement (1920) & Khilafat Agitation', tier1: true },
-      { name: 'Swarajists, Simon Commission, Nehru Report & Lahore Session (Purna Swaraj)', tier1: true },
-      { name: 'Revolutionary Nationalism (HSRA, Bhagat Singh, Surya Sen)', tier1: true },
-      { name: 'Civil Disobedience Movement & Dandi March (1930)', tier1: true },
-      { name: 'Gandhi-Irwin Pact, Round Table Conferences & Poona Pact', tier1: true },
-      { name: 'Government of India Act 1935 & 1937 Provincial Elections', tier1: true },
-      { name: 'August Offer, Individual Satyagraha & Cripps Mission (1942)', tier1: true },
-      { name: 'Quit India Movement, Royal Indian Navy (RIN) Mutiny & INA (Bose)', tier1: true },
-      { name: 'Wavell Plan, Cabinet Mission, Mountbatten Plan & Partition (1947)', tier1: true },
-      { name: 'Integration of Princely States & Post-Independence Consolidation', tier1: false }
+      { name: 'Prehistoric Period & Indus Valley Civilization (IVC)', tier1: true, refChapter: 'RS Sharma Ancient NCERT Ch 4-6' },
+      { name: 'Vedic Age: Early & Later Vedic Polity, Society & Texts', tier1: true, refChapter: 'RS Sharma Ancient NCERT Ch 7-8' },
+      { name: 'Buddhism & Jainism: Philosophy, Councils, Literature & Sects', tier1: true, refChapter: 'RS Sharma Ancient NCERT Ch 9' },
+      { name: 'Mahajanapadas, Magadha Rise & Mauryan Empire (Ashoka Edicts)', tier1: true, refChapter: 'RS Sharma Ancient NCERT Ch 12-14' },
+      { name: 'Post-Mauryan Dynasties: Sungas, Satavahanas, Kushans', tier1: false, refChapter: 'RS Sharma Ancient NCERT Ch 15' },
+      { name: 'Gupta Empire: Golden Age Administration, Science & Literature', tier1: true, refChapter: 'RS Sharma Ancient NCERT Ch 19' },
+      { name: 'Post-Gupta Period: Harshavardhana & Regional Kingdoms', tier1: false, refChapter: 'RS Sharma Ancient NCERT Ch 21' },
+      { name: 'Sangam Period & South Indian Dynasties (Cholas, Cheras, Pandyas)', tier1: true, refChapter: 'RS Sharma Ancient NCERT Ch 16' },
+      { name: 'Indian Art & Architecture: Temple Styles (Nagara, Dravida, Vesara)', tier1: true, refChapter: 'Nitin Singhania Art & Culture Ch 1' },
+      { name: 'Classical & Folk Dances, Music, Puppetry & UNESCO Sites', tier1: true, refChapter: 'Nitin Singhania Art & Culture Ch 2 & 5' },
+      { name: 'Early Medieval India, Tripartite Struggle & Arab Invasions', tier1: false, refChapter: 'Satish Chandra Medieval NCERT Ch 1-3' },
+      { name: 'Delhi Sultanate: Slave, Khilji, Tughlaq, Sayyid, Lodi Dynasties', tier1: true, refChapter: 'Satish Chandra Medieval NCERT Ch 6-8' },
+      { name: 'Sultanate Administration, Economy, Architecture & Iqta System', tier1: true, refChapter: 'Satish Chandra Medieval NCERT Ch 9' },
+      { name: 'Vijayanagara & Bahmani Empires: Polity, Foreign Travelers, Art', tier1: true, refChapter: 'Satish Chandra Medieval NCERT Ch 10' },
+      { name: 'Bhakti & Sufi Movements: Saints, Literature & Impact', tier1: true, refChapter: 'Satish Chandra Medieval NCERT Ch 11' },
+      { name: 'Mughal Empire: Babur to Aurangzeb Policies & Battles', tier1: true, refChapter: 'Satish Chandra Medieval NCERT Ch 12-15' },
+      { name: 'Mughal Administration: Mansabdari, Jagirdari & Land Revenue', tier1: true, refChapter: 'Satish Chandra Medieval NCERT Ch 16' },
+      { name: 'Maratha Empire: Shivaji Administration, Chauth/Sardeshmukhi, Peshwas', tier1: true, refChapter: 'Satish Chandra Medieval NCERT Ch 18' },
+      { name: 'Advent of European Powers & Carnatic Wars', tier1: false, refChapter: 'Spectrum Modern India Ch 3 & 4' },
+      { name: 'British Expansion: Battle of Plassey, Buxar & Anglo-Mysore/Maratha Wars', tier1: true, refChapter: 'Spectrum Modern India Ch 5' },
+      { name: 'British Administrative Systems: Subsidiary Alliance & Doctrine of Lapse', tier1: true, refChapter: 'Spectrum Modern India Ch 6' },
+      { name: 'Economic Impact: Land Revenue (Zamindari, Ryotwari, Mahalwari) & Drain Theory', tier1: true, refChapter: 'Spectrum Modern India Ch 7' },
+      { name: 'Tribal, Peasant & Civil Uprisings before 1857', tier1: true, refChapter: 'Spectrum Modern India Ch 8' },
+      { name: 'Revolt of 1857: Causes, Leaders, Centers & Suppression', tier1: true, refChapter: 'Spectrum Modern India Ch 9' },
+      { name: 'Socio-Religious Reform Movements (Raja Ram Mohan, Dayanand, Vivekananda)', tier1: true, refChapter: 'Spectrum Modern India Ch 10 & 11' },
+      { name: 'Development of Indian Press, Civil Services & Modern Education', tier1: true, refChapter: 'Spectrum Modern India Ch 26-28' },
+      { name: 'Foundation of INC, Safety Valve Theory & Early Political Associations', tier1: false, refChapter: 'Spectrum Modern India Ch 12' },
+      { name: 'Moderate Phase & Economic Nationalism (1885–1905)', tier1: false, refChapter: 'Spectrum Modern India Ch 13' },
+      { name: 'Partition of Bengal (1905), Swadeshi Movement & Surat Split (1907)', tier1: true, refChapter: 'Spectrum Modern India Ch 14' },
+      { name: 'Morley-Minto Reforms (1909), Ghadar Party & Home Rule League', tier1: true, refChapter: 'Spectrum Modern India Ch 15' },
+      { name: 'Gandhi Arrival, Champaran, Kheda, Ahmedabad & Rowlatt Satyagraha', tier1: true, refChapter: 'Spectrum Modern India Ch 16' },
+      { name: 'Non-Cooperation Movement (1920) & Khilafat Agitation', tier1: true, refChapter: 'Spectrum Modern India Ch 17' },
+      { name: 'Swarajists, Simon Commission, Nehru Report & Lahore Session (Purna Swaraj)', tier1: true, refChapter: 'Spectrum Modern India Ch 18 & 19' },
+      { name: 'Revolutionary Nationalism (HSRA, Bhagat Singh, Surya Sen)', tier1: true, refChapter: 'Spectrum Modern India Ch 20' },
+      { name: 'Civil Disobedience Movement & Dandi March (1930)', tier1: true, refChapter: 'Spectrum Modern India Ch 21' },
+      { name: 'Gandhi-Irwin Pact, Round Table Conferences & Poona Pact', tier1: true, refChapter: 'Spectrum Modern India Ch 22' },
+      { name: 'Government of India Act 1935 & 1937 Provincial Elections', tier1: true, refChapter: 'Spectrum Modern India Ch 23' },
+      { name: 'August Offer, Individual Satyagraha & Cripps Mission (1942)', tier1: true, refChapter: 'Spectrum Modern India Ch 24' },
+      { name: 'Quit India Movement, Royal Indian Navy (RIN) Mutiny & INA (Bose)', tier1: true, refChapter: 'Spectrum Modern India Ch 25' },
+      { name: 'Wavell Plan, Cabinet Mission, Mountbatten Plan & Partition (1947)', tier1: true, refChapter: 'Spectrum Modern India Ch 26' },
+      { name: 'Integration of Princely States & Post-Independence Consolidation', tier1: false, refChapter: 'Spectrum Modern India Ch 27' }
     ]
   },
   {
     id: 'geography',
-    name: 'Indian & Physical World Geography (NCERT 9-12 + GC Leong)',
+    subject: 'Geography',
+    name: 'Indian & Physical World Geography',
+    bookRef: 'NCERT Class 11 (Physical/India) + GC Leong Physical Geography',
     chapters: [
-      { name: 'Solar System, Earth Motion, Latitudes, Longitudes & Time Zones', tier1: true },
-      { name: 'Interior of the Earth, Seismic Waves & Continental Drift', tier1: true },
-      { name: 'Plate Tectonics, Sea Floor Spreading & Mountain Building', tier1: true },
-      { name: 'Earthquakes, Volcanoes, Landforms & Rock Classification', tier1: true },
-      { name: 'Weathering, Mass Wasting, Fluvial, Glacial & Aeolian Landforms', tier1: false },
-      { name: 'Atmospheric Structure, Composition & Heat Budget', tier1: true },
-      { name: 'Atmospheric Pressure, Planetary Wind Systems & Jet Streams', tier1: true },
-      { name: 'Air Masses, Fronts, Temperate & Tropical Cyclones', tier1: true },
-      { name: 'Humidity, Condensation, Precipitation & World Climatic Regions', tier1: true },
-      { name: 'Ocean Relief, Salinity, Temperature & Coral Reefs', tier1: true },
-      { name: 'Ocean Currents, Tides & Marine Resources', tier1: true },
-      { name: 'India: Location, Frontiers, Coastline, Islands & Exclusive Economic Zone', tier1: true },
-      { name: 'Physiography: The Himalayas, Major Passes & Structural Divisions', tier1: true },
-      { name: 'Physiography: Northern Plains, Peninsular Plateau & Coastal Plains', tier1: true },
-      { name: 'Drainage: Himalayan River Systems (Indus, Ganga, Brahmaputra)', tier1: true },
-      { name: 'Drainage: Peninsular Rivers (Godavari, Krishna, Cauvery, Narmada, Tapi)', tier1: true },
-      { name: 'Indian Monsoon: Origin Mechanism, El Niño, La Niña, IOD & Seasons', tier1: true },
-      { name: 'Soils of India: Types, Classification, Erosion & Conservation', tier1: true },
-      { name: 'Natural Vegetation, Forests of India & Forest Survey Metrics', tier1: true },
-      { name: 'Agriculture: Cropping Patterns, Kharif/Rabi/Zaid & Major Cash Crops', tier1: true },
-      { name: 'Irrigation, Multipurpose River Valley Projects & Dam Infrastructure', tier1: true },
-      { name: 'Mineral & Energy Resources: Coal, Petroleum, Renewables, Atomic Minerals', tier1: true },
-      { name: 'Industrial Belts & Infrastructure Corridors of India', tier1: false },
-      { name: 'Transport: National Highways, Dedicated Freight Corridors & Inland Waterways', tier1: true },
-      { name: 'Demography, Census Data, Urbanization & Tribal Demographics', tier1: true }
+      { name: 'Solar System, Earth Motion, Latitudes, Longitudes & Time Zones', tier1: true, refChapter: 'GC Leong Ch 1 & 2' },
+      { name: 'Interior of the Earth, Seismic Waves & Continental Drift', tier1: true, refChapter: 'NCERT Class 11 Physical Ch 2 & 3' },
+      { name: 'Plate Tectonics, Sea Floor Spreading & Mountain Building', tier1: true, refChapter: 'NCERT Class 11 Physical Ch 4' },
+      { name: 'Earthquakes, Volcanoes, Landforms & Rock Classification', tier1: true, refChapter: 'GC Leong Ch 3 & 4' },
+      { name: 'Weathering, Mass Wasting, Fluvial, Glacial & Aeolian Landforms', tier1: false, refChapter: 'GC Leong Ch 5-8' },
+      { name: 'Atmospheric Structure, Composition & Heat Budget', tier1: true, refChapter: 'NCERT Class 11 Physical Ch 8 & 9' },
+      { name: 'Atmospheric Pressure, Planetary Wind Systems & Jet Streams', tier1: true, refChapter: 'NCERT Class 11 Physical Ch 10' },
+      { name: 'Air Masses, Fronts, Temperate & Tropical Cyclones', tier1: true, refChapter: 'NCERT Class 11 Physical Ch 11' },
+      { name: 'Humidity, Condensation, Precipitation & World Climatic Regions', tier1: true, refChapter: 'GC Leong Part 2 (Ch 13-25)' },
+      { name: 'Ocean Relief, Salinity, Temperature & Coral Reefs', tier1: true, refChapter: 'NCERT Class 11 Physical Ch 12 & 13' },
+      { name: 'Ocean Currents, Tides & Marine Resources', tier1: true, refChapter: 'NCERT Class 11 Physical Ch 14' },
+      { name: 'India: Location, Frontiers, Coastline, Islands & Exclusive Economic Zone', tier1: true, refChapter: 'NCERT Class 11 India Physical Ch 1' },
+      { name: 'Physiography: The Himalayas, Major Passes & Structural Divisions', tier1: true, refChapter: 'NCERT Class 11 India Physical Ch 2' },
+      { name: 'Physiography: Northern Plains, Peninsular Plateau & Coastal Plains', tier1: true, refChapter: 'NCERT Class 11 India Physical Ch 2' },
+      { name: 'Drainage: Himalayan River Systems (Indus, Ganga, Brahmaputra)', tier1: true, refChapter: 'NCERT Class 11 India Physical Ch 3' },
+      { name: 'Drainage: Peninsular Rivers (Godavari, Krishna, Cauvery, Narmada, Tapi)', tier1: true, refChapter: 'NCERT Class 11 India Physical Ch 3' },
+      { name: 'Indian Monsoon: Origin Mechanism, El Niño, La Niña, IOD & Seasons', tier1: true, refChapter: 'NCERT Class 11 India Physical Ch 4' },
+      { name: 'Soils of India: Types, Classification, Erosion & Conservation', tier1: true, refChapter: 'NCERT Class 11 India Physical Ch 6' },
+      { name: 'Natural Vegetation, Forests of India & Forest Survey Metrics', tier1: true, refChapter: 'NCERT Class 11 India Physical Ch 5' },
+      { name: 'Agriculture: Cropping Patterns, Kharif/Rabi/Zaid & Major Cash Crops', tier1: true, refChapter: 'NCERT Class 12 India People & Economy Ch 5' },
+      { name: 'Irrigation, Multipurpose River Valley Projects & Dam Infrastructure', tier1: true, refChapter: 'NCERT Class 12 India People & Economy Ch 6' },
+      { name: 'Mineral & Energy Resources: Coal, Petroleum, Renewables, Atomic Minerals', tier1: true, refChapter: 'NCERT Class 12 India People & Economy Ch 7' },
+      { name: 'Industrial Belts & Infrastructure Corridors of India', tier1: false, refChapter: 'NCERT Class 12 India People & Economy Ch 8' },
+      { name: 'Transport: National Highways, Dedicated Freight Corridors & Inland Waterways', tier1: true, refChapter: 'NCERT Class 12 India People & Economy Ch 10' },
+      { name: 'Demography, Census Data, Urbanization & Tribal Demographics', tier1: true, refChapter: 'NCERT Class 12 India People & Economy Ch 1-3' }
     ]
   },
   {
     id: 'science',
-    name: 'General Science (Physics, Chemistry & Biology - NCERT 9-10)',
+    subject: 'Science',
+    name: 'General Science (PCB)',
+    bookRef: 'NCERT Science (Class 9 & 10) + Lucent General Science',
     chapters: [
-      { name: 'Units, Dimensions, Significant Figures & Measuring Instruments', tier1: true },
-      { name: 'Kinematics: Velocity, Acceleration, Projectile & Circular Motion', tier1: false },
-      { name: 'Dynamics: Newton Laws, Friction, Momentum & Impulse', tier1: true },
-      { name: 'Work, Power, Energy & Conservation of Mechanical Energy', tier1: true },
-      { name: 'Universal Gravitation, Escape Velocity & Kepler Laws', tier1: true },
-      { name: 'Fluids: Hydrostatic Pressure, Pascal Law, Archimedes Principle & Viscosity', tier1: true },
-      { name: 'Heat, Temperature Scales, Thermal Expansion & Modes of Transmission', tier1: true },
-      { name: 'Thermodynamics: Laws, Specific Heat & Latent Heat Concepts', tier1: false },
-      { name: 'Optics: Reflection, Refraction, Total Internal Reflection & Dispersion', tier1: true },
-      { name: 'Lenses, Mirrors, Ray Diagrams & Optical Instruments (Human Eye Defects)', tier1: true },
-      { name: 'Wave Motion, Sound Waves, Doppler Effect & Ultrasound/Infrasound', tier1: true },
-      { name: 'Electrostatics, Electric Current, Ohm Law, Resistance & Power', tier1: true },
-      { name: 'Magnetic Effects of Current, Motors, Generators & Electromagnetic Induction', tier1: true },
-      { name: 'Nuclear Physics: Radioactivity, Half-Life, Nuclear Fission & Fusion', tier1: true },
-      { name: 'Matter & Its States, Separation Techniques & Colloids/Suspensions', tier1: false },
-      { name: 'Atomic Structure: Thomson, Rutherford, Bohr Models & Quantum Numbers', tier1: true },
-      { name: 'Chemical Bonding: Ionic, Covalent, Hydrogen Bonds & Coordinate Bonds', tier1: true },
-      { name: 'Periodic Table: Modern Periodic Law, Electronegativity, Ionization Energy', tier1: true },
-      { name: 'Chemical Reactions, Stoichiometry & Types of Reactions', tier1: false },
-      { name: 'Acids, Bases, Salts, pH Scale & Everyday Applications', tier1: true },
-      { name: 'Metals & Non-Metals: Reactivity Series, Extraction & Metallurgy', tier1: true },
-      { name: 'Carbon & Its Compounds: Allotropes, Hydrocarbons & Functional Groups', tier1: true },
-      { name: 'Polymers, Synthetic Fibers, Soaps, Detergents & Explosives', tier1: true },
-      { name: 'Environmental Chemistry: Greenhouse Gases, Acid Rain & Ozone Depletion', tier1: true },
-      { name: 'Cell: Structure, Organelles (Mitochondria, Ribosome, Chloroplast) & Cell Division', tier1: true },
-      { name: 'Plant Tissues (Xylem, Phloem) & Animal Tissues (Connective, Nervous)', tier1: true },
-      { name: 'Plant Physiology: Photosynthesis, Transpiration & Plant Hormones', tier1: true },
-      { name: 'Human Digestive System, Enzymes & Nutritional Components', tier1: true },
-      { name: 'Human Circulatory System: Heart, Blood Vessels, Blood Groups & Lymph', tier1: true },
-      { name: 'Human Respiratory System & Cellular Respiration', tier1: true },
-      { name: 'Human Excretory System: Kidney Structure & Nephron Mechanism', tier1: true },
-      { name: 'Human Nervous System: Brain Anatomy, Reflex Arc & Neurons', tier1: true },
-      { name: 'Endocrine System: Hormones, Glands (Thyroid, Pituitary, Adrenal) & Disorders', tier1: true },
-      { name: 'Human Reproduction & Embryonic Development Basics', tier1: false },
-      { name: 'Genetics: Mendel Laws, DNA/RNA Structure, Chromosomes & Heredity', tier1: true },
-      { name: 'Microorganisms, Human Diseases (Bacterial, Viral, Protozoan) & Vaccines', tier1: true }
+      { name: 'Units, Dimensions, Significant Figures & Measuring Instruments', tier1: true, refChapter: 'Lucent Science (Physics Unit 1)' },
+      { name: 'Kinematics: Velocity, Acceleration, Projectile & Circular Motion', tier1: false, refChapter: 'NCERT Class 9 Ch 8 (Motion)' },
+      { name: 'Dynamics: Newton Laws, Friction, Momentum & Impulse', tier1: true, refChapter: 'NCERT Class 9 Ch 9 (Force & Laws)' },
+      { name: 'Work, Power, Energy & Conservation of Mechanical Energy', tier1: true, refChapter: 'NCERT Class 9 Ch 11' },
+      { name: 'Universal Gravitation, Escape Velocity & Kepler Laws', tier1: true, refChapter: 'NCERT Class 9 Ch 10' },
+      { name: 'Fluids: Hydrostatic Pressure, Pascal Law, Archimedes Principle & Viscosity', tier1: true, refChapter: 'NCERT Class 9 Ch 10' },
+      { name: 'Heat, Temperature Scales, Thermal Expansion & Modes of Transmission', tier1: true, refChapter: 'Lucent Science (Physics Heat Unit)' },
+      { name: 'Thermodynamics: Laws, Specific Heat & Latent Heat Concepts', tier1: false, refChapter: 'Lucent Science (Physics Unit 3)' },
+      { name: 'Optics: Reflection, Refraction, Total Internal Reflection & Dispersion', tier1: true, refChapter: 'NCERT Class 10 Ch 10' },
+      { name: 'Lenses, Mirrors, Ray Diagrams & Optical Instruments (Human Eye Defects)', tier1: true, refChapter: 'NCERT Class 10 Ch 11' },
+      { name: 'Wave Motion, Sound Waves, Doppler Effect & Ultrasound/Infrasound', tier1: true, refChapter: 'NCERT Class 9 Ch 12' },
+      { name: 'Electrostatics, Electric Current, Ohm Law, Resistance & Power', tier1: true, refChapter: 'NCERT Class 10 Ch 12' },
+      { name: 'Magnetic Effects of Current, Motors, Generators & Electromagnetic Induction', tier1: true, refChapter: 'NCERT Class 10 Ch 13' },
+      { name: 'Nuclear Physics: Radioactivity, Half-Life, Nuclear Fission & Fusion', tier1: true, refChapter: 'Lucent Science (Modern Physics)' },
+      { name: 'Matter & Its States, Separation Techniques & Colloids/Suspensions', tier1: false, refChapter: 'NCERT Class 9 Ch 1 & 2' },
+      { name: 'Atomic Structure: Thomson, Rutherford, Bohr Models & Quantum Numbers', tier1: true, refChapter: 'NCERT Class 9 Ch 3 & 4' },
+      { name: 'Chemical Bonding: Ionic, Covalent, Hydrogen Bonds & Coordinate Bonds', tier1: true, refChapter: 'Lucent Science (Chemistry Unit 3)' },
+      { name: 'Periodic Table: Modern Periodic Law, Electronegativity, Ionization Energy', tier1: true, refChapter: 'NCERT Class 10 Ch 5' },
+      { name: 'Chemical Reactions, Stoichiometry & Types of Reactions', tier1: false, refChapter: 'NCERT Class 10 Ch 1' },
+      { name: 'Acids, Bases, Salts, pH Scale & Everyday Applications', tier1: true, refChapter: 'NCERT Class 10 Ch 2' },
+      { name: 'Metals & Non-Metals: Reactivity Series, Extraction & Metallurgy', tier1: true, refChapter: 'NCERT Class 10 Ch 3' },
+      { name: 'Carbon & Its Compounds: Allotropes, Hydrocarbons & Functional Groups', tier1: true, refChapter: 'NCERT Class 10 Ch 4' },
+      { name: 'Polymers, Synthetic Fibers, Soaps, Detergents & Explosives', tier1: true, refChapter: 'NCERT Class 8 Ch 3' },
+      { name: 'Environmental Chemistry: Greenhouse Gases, Acid Rain & Ozone Depletion', tier1: true, refChapter: 'NCERT Class 10 Ch 15 & 16' },
+      { name: 'Cell: Structure, Organelles (Mitochondria, Ribosome, Chloroplast) & Cell Division', tier1: true, refChapter: 'NCERT Class 9 Ch 5' },
+      { name: 'Plant Tissues (Xylem, Phloem) & Animal Tissues (Connective, Nervous)', tier1: true, refChapter: 'NCERT Class 9 Ch 6' },
+      { name: 'Plant Physiology: Photosynthesis, Transpiration & Plant Hormones', tier1: true, refChapter: 'NCERT Class 10 Ch 6 & 7' },
+      { name: 'Human Digestive System, Enzymes & Nutritional Components', tier1: true, refChapter: 'NCERT Class 10 Ch 6' },
+      { name: 'Human Circulatory System: Heart, Blood Vessels, Blood Groups & Lymph', tier1: true, refChapter: 'NCERT Class 10 Ch 6' },
+      { name: 'Human Respiratory System & Cellular Respiration', tier1: true, refChapter: 'NCERT Class 10 Ch 6' },
+      { name: 'Human Excretory System: Kidney Structure & Nephron Mechanism', tier1: true, refChapter: 'NCERT Class 10 Ch 6' },
+      { name: 'Human Nervous System: Brain Anatomy, Reflex Arc & Neurons', tier1: true, refChapter: 'NCERT Class 10 Ch 7' },
+      { name: 'Endocrine System: Hormones, Glands (Thyroid, Pituitary, Adrenal) & Disorders', tier1: true, refChapter: 'NCERT Class 10 Ch 7' },
+      { name: 'Human Reproduction & Embryonic Development Basics', tier1: false, refChapter: 'NCERT Class 10 Ch 8' },
+      { name: 'Genetics: Mendel Laws, DNA/RNA Structure, Chromosomes & Heredity', tier1: true, refChapter: 'NCERT Class 10 Ch 9' },
+      { name: 'Microorganisms, Human Diseases (Bacterial, Viral, Protozoan) & Vaccines', tier1: true, refChapter: 'NCERT Class 9 Ch 13' }
     ]
   },
   {
     id: 'economy',
-    name: 'Indian Economy & Macroeconomics (NCERT + Mrunal Core)',
+    subject: 'Economy',
+    name: 'Indian Economy & Macroeconomics',
+    bookRef: 'Mrunal Patel Pillar Notes + NCERT Class 12 Macroeconomics',
     chapters: [
-      { name: 'National Income Accounting: GDP, GNP, NNP, Real vs Nominal GDP & GVA', tier1: true },
-      { name: 'Inflation: Types (Demand-pull, Cost-push), WPI, CPI, PPI & Core Inflation', tier1: true },
-      { name: 'Monetary Policy: RBI Functions, Repo, Reverse Repo, CRR, SLR, OMO & MPC', tier1: true },
-      { name: 'Indian Banking System: Commercial Banks, NPA Management, IBC & Basel Accords', tier1: true },
-      { name: 'NBFCs, Small Finance Banks, Payment Banks & Digital Public Infrastructure (UPI)', tier1: false },
-      { name: 'Fiscal Policy: Union Budget Components, Revenue/Capital Receipts & Expenditure', tier1: true },
-      { name: 'Deficits: Fiscal Deficit, Revenue Deficit, Primary Deficit & FRBM Act', tier1: true },
-      { name: 'Indian Tax Structure: Direct vs Indirect Taxes, GST Council, Rates & Compliance', tier1: true },
-      { name: 'Financial Markets: Money Market Instruments (T-Bills, Commercial Paper, CD)', tier1: true },
-      { name: 'Capital Markets: Primary/Secondary Markets, SEBI, IPOs, Bonds & Stock Exchanges', tier1: true },
-      { name: 'External Sector: Balance of Payments (Current & Capital Account), CAD & Forex', tier1: true },
-      { name: 'Exchange Rate Dynamics: NEER, REER, Rupee Depreciation & Hedging', tier1: true },
-      { name: 'International Financial Institutions: IMF, World Bank Group, WTO & ADB', tier1: true },
-      { name: 'Poverty, Inequality (Gini Coefficient, Lorenz Curve) & Multidimensional Poverty', tier1: true },
-      { name: 'Employment: Unemployment Types, Labor Force Participation Rate & Skilling', tier1: true },
-      { name: 'Agriculture Economy: MSP Regime, APMC Reforms, Fertilizer Subsidies & Food Security', tier1: true },
-      { name: 'Industrial Policies, Disinvestment, National Monetization Pipeline & PLI Schemes', tier1: true }
+      { name: 'National Income Accounting: GDP, GNP, NNP, Real vs Nominal GDP & GVA', tier1: true, refChapter: 'Mrunal Pillar 1A + NCERT Macro Ch 2' },
+      { name: 'Inflation: Types (Demand-pull, Cost-push), WPI, CPI, PPI & Core Inflation', tier1: true, refChapter: 'Mrunal Pillar 1B' },
+      { name: 'Monetary Policy: RBI Functions, Repo, Reverse Repo, CRR, SLR, OMO & MPC', tier1: true, refChapter: 'Mrunal Pillar 1C' },
+      { name: 'Indian Banking System: Commercial Banks, NPA Management, IBC & Basel Accords', tier1: true, refChapter: 'Mrunal Pillar 1D' },
+      { name: 'NBFCs, Small Finance Banks, Payment Banks & Digital Public Infrastructure (UPI)', tier1: false, refChapter: 'Mrunal Pillar 1E' },
+      { name: 'Fiscal Policy: Union Budget Components, Revenue/Capital Receipts & Expenditure', tier1: true, refChapter: 'Mrunal Pillar 2A + NCERT Macro Ch 5' },
+      { name: 'Deficits: Fiscal Deficit, Revenue Deficit, Primary Deficit & FRBM Act', tier1: true, refChapter: 'Mrunal Pillar 2B' },
+      { name: 'Indian Tax Structure: Direct vs Indirect Taxes, GST Council, Rates & Compliance', tier1: true, refChapter: 'Mrunal Pillar 2C' },
+      { name: 'Financial Markets: Money Market Instruments (T-Bills, Commercial Paper, CD)', tier1: true, refChapter: 'Mrunal Pillar 3A' },
+      { name: 'Capital Markets: Primary/Secondary Markets, SEBI, IPOs, Bonds & Stock Exchanges', tier1: true, refChapter: 'Mrunal Pillar 3B' },
+      { name: 'External Sector: Balance of Payments (Current & Capital Account), CAD & Forex', tier1: true, refChapter: 'Mrunal Pillar 4A + NCERT Macro Ch 6' },
+      { name: 'Exchange Rate Dynamics: NEER, REER, Rupee Depreciation & Hedging', tier1: true, refChapter: 'Mrunal Pillar 4B' },
+      { name: 'International Financial Institutions: IMF, World Bank Group, WTO & ADB', tier1: true, refChapter: 'Mrunal Pillar 4C' },
+      { name: 'Poverty, Inequality (Gini Coefficient, Lorenz Curve) & Multidimensional Poverty', tier1: true, refChapter: 'Mrunal Pillar 5A' },
+      { name: 'Employment: Unemployment Types, Labor Force Participation Rate & Skilling', tier1: true, refChapter: 'Mrunal Pillar 5B' },
+      { name: 'Agriculture Economy: MSP Regime, APMC Reforms, Fertilizer Subsidies & Food Security', tier1: true, refChapter: 'Mrunal Pillar 6A' },
+      { name: 'Industrial Policies, Disinvestment, National Monetization Pipeline & PLI Schemes', tier1: true, refChapter: 'Mrunal Pillar 6B' }
     ]
   },
   {
     id: 'quant',
-    name: 'Quantitative Aptitude & Advanced Mathematics (Arithmetic + Pure Math)',
+    subject: 'Quant',
+    name: 'Quantitative Aptitude & Advanced Math',
+    bookRef: 'RS Aggarwal Quantitative Aptitude + Quantum CAT (Sarvesh Verma)',
     chapters: [
-      { name: 'Number System, Divisibility Rules, Unit Digits & Remainder Theorems', tier1: true },
-      { name: 'HCF & LCM, Surds, Indices & Simplification Shortcuts', tier1: true },
-      { name: 'Percentages, Base Shifts & Successive Percentage Changes', tier1: true },
-      { name: 'Profit, Loss, Markup & Discount Calculations', tier1: true },
-      { name: 'Simple Interest & Compound Interest (Installments & Annuities)', tier1: true },
-      { name: 'Ratio, Proportion & Variations', tier1: true },
-      { name: 'Averages, Weighted Averages & Age Problems', tier1: true },
-      { name: 'Mixtures, Alligations & Replacement Formulae', tier1: true },
-      { name: 'Time & Work, Efficiency & Alternate Day Concepts', tier1: true },
-      { name: 'Pipes & Cisterns', tier1: true },
-      { name: 'Time, Speed & Distance, Average Speed & Relative Speed', tier1: true },
-      { name: 'Trains, Platforms, Boats & Streams', tier1: true },
-      { name: 'Races & Linear/Circular Tracks', tier1: false },
-      { name: 'Partnership & Profit Sharing Ratios', tier1: false },
-      { name: 'Basic Algebra: Identities, Factorization & Simplification', tier1: true },
-      { name: 'Linear Equations & Quadratic Equations (Roots & Nature)', tier1: true },
-      { name: 'Progressions: Arithmetic (AP), Geometric (GP) & Harmonic (HP)', tier1: true },
-      { name: 'Set Theory, Venn Diagrams & Relations (CDS specific)', tier1: true },
-      { name: 'Logarithms & Properties (CDS pure question bank)', tier1: true },
-      { name: 'Lines, Angles, Transversals & Triangles: Congruency & Similarity', tier1: true },
-      { name: 'Centers of Triangles: Centroid, Incenter, Orthocenter, Circumcenter', tier1: true },
-      { name: 'Quadrilaterals, Polygons & Circle Geometry (Chords, Secants, Tangents)', tier1: true },
-      { name: 'Mensuration 2D: Triangles, Quadrilaterals, Circles, Sectors (Area & Perimeter)', tier1: true },
-      { name: 'Mensuration 3D: Cube, Cuboid, Cylinder, Cone, Sphere, Hemisphere & Frustum', tier1: true },
-      { name: 'Trigonometric Ratios, Standard Angles & Fundamental Identities', tier1: true },
-      { name: 'Heights & Distances (Angle of Elevation & Depression)', tier1: true },
-      { name: 'Coordinate Geometry: Distance, Section Formula, Slope, Line Equations', tier1: true },
-      { name: 'Statistics: Mean, Median, Mode, Standard Deviation & Variance', tier1: true },
-      { name: 'Probability: Classical, Conditional & Combinatorial Problems', tier1: true },
-      { name: 'Data Interpretation: Tables, Bar Charts, Pie Charts, Line Graphs & Radar', tier1: true }
+      { name: 'Number System, Divisibility Rules, Unit Digits & Remainder Theorems', tier1: true, refChapter: 'Quantum CAT Module 1' },
+      { name: 'HCF & LCM, Surds, Indices & Simplification Shortcuts', tier1: true, refChapter: 'RS Aggarwal Ch 2 & 9' },
+      { name: 'Percentages, Base Shifts & Successive Percentage Changes', tier1: true, refChapter: 'RS Aggarwal Ch 10' },
+      { name: 'Profit, Loss, Markup & Discount Calculations', tier1: true, refChapter: 'RS Aggarwal Ch 11' },
+      { name: 'Simple Interest & Compound Interest (Installments & Annuities)', tier1: true, refChapter: 'RS Aggarwal Ch 12 & 13' },
+      { name: 'Ratio, Proportion & Variations', tier1: true, refChapter: 'RS Aggarwal Ch 14' },
+      { name: 'Averages, Weighted Averages & Age Problems', tier1: true, refChapter: 'RS Aggarwal Ch 6 & 8' },
+      { name: 'Mixtures, Alligations & Replacement Formulae', tier1: true, refChapter: 'Quantum CAT Alligations Unit' },
+      { name: 'Time & Work, Efficiency & Alternate Day Concepts', tier1: true, refChapter: 'RS Aggarwal Ch 15' },
+      { name: 'Pipes & Cisterns', tier1: true, refChapter: 'RS Aggarwal Ch 16' },
+      { name: 'Time, Speed & Distance, Average Speed & Relative Speed', tier1: true, refChapter: 'RS Aggarwal Ch 17' },
+      { name: 'Trains, Platforms, Boats & Streams', tier1: true, refChapter: 'RS Aggarwal Ch 18 & 19' },
+      { name: 'Races & Linear/Circular Tracks', tier1: false, refChapter: 'Quantum CAT TSD Section' },
+      { name: 'Partnership & Profit Sharing Ratios', tier1: false, refChapter: 'RS Aggarwal Ch 14' },
+      { name: 'Basic Algebra: Identities, Factorization & Simplification', tier1: true, refChapter: 'Advance Maths Algebra Unit 1' },
+      { name: 'Linear Equations & Quadratic Equations (Roots & Nature)', tier1: true, refChapter: 'Advance Maths Algebra Unit 2' },
+      { name: 'Progressions: Arithmetic (AP), Geometric (GP) & Harmonic (HP)', tier1: true, refChapter: 'Quantum CAT Progressions' },
+      { name: 'Set Theory, Venn Diagrams & Relations (CDS specific)', tier1: true, refChapter: 'Pathfinder CDS Mathematics Ch 5' },
+      { name: 'Logarithms & Properties (CDS pure question bank)', tier1: true, refChapter: 'Pathfinder CDS Mathematics Ch 6' },
+      { name: 'Lines, Angles, Transversals & Triangles: Congruency & Similarity', tier1: true, refChapter: 'Advance Maths Geometry Unit 1' },
+      { name: 'Centers of Triangles: Centroid, Incenter, Orthocenter, Circumcenter', tier1: true, refChapter: 'Advance Maths Geometry Unit 2' },
+      { name: 'Quadrilaterals, Polygons & Circle Geometry (Chords, Secants, Tangents)', tier1: true, refChapter: 'Advance Maths Geometry Unit 3' },
+      { name: 'Mensuration 2D: Triangles, Quadrilaterals, Circles, Sectors (Area & Perimeter)', tier1: true, refChapter: 'RS Aggarwal Ch 24' },
+      { name: 'Mensuration 3D: Cube, Cuboid, Cylinder, Cone, Sphere, Hemisphere & Frustum', tier1: true, refChapter: 'RS Aggarwal Ch 25' },
+      { name: 'Trigonometric Ratios, Standard Angles & Fundamental Identities', tier1: true, refChapter: 'Advance Maths Trigonometry' },
+      { name: 'Heights & Distances (Angle of Elevation & Depression)', tier1: true, refChapter: 'Advance Maths Trigonometry Unit 3' },
+      { name: 'Coordinate Geometry: Distance, Section Formula, Slope, Line Equations', tier1: true, refChapter: 'Advance Maths Coordinate Geometry' },
+      { name: 'Statistics: Mean, Median, Mode, Standard Deviation & Variance', tier1: true, refChapter: 'Pathfinder CDS Statistics' },
+      { name: 'Probability: Classical, Conditional & Combinatorial Problems', tier1: true, refChapter: 'Quantum CAT Probability' },
+      { name: 'Data Interpretation: Tables, Bar Charts, Pie Charts, Line Graphs & Radar', tier1: true, refChapter: 'RS Aggarwal DI Section' }
     ]
   },
   {
     id: 'reasoning',
-    name: 'General Intelligence & Reasoning (Verbal, Non-Verbal & Military Aptitude)',
+    subject: 'Reasoning',
+    name: 'General Intelligence & Reasoning',
+    bookRef: 'RS Aggarwal Non-Verbal + MK Pandey Analytical Reasoning',
     chapters: [
-      { name: 'Analogy & Classification (Word, Number, Letter)', tier1: true },
-      { name: 'Number Series, Alphabet Series, Mixed Series & Missing Terms', tier1: true },
-      { name: 'Coding-Decoding: Letter Shifting, Substitution, Matrix & Binary', tier1: true },
-      { name: 'Blood Relations: Coded, Decoded & Direct Relations', tier1: true },
-      { name: 'Direction Sense & Distance (Shadow & Angle Turns)', tier1: true },
-      { name: 'Order, Ranking & Comparison Tests', tier1: true },
-      { name: 'Syllogisms (Standard, Possibility & Only a Few cases)', tier1: true },
-      { name: 'Venn Diagrams (Geometric & Logical Venn)', tier1: true },
-      { name: 'Seating Arrangement (Linear, Circular, Facing In/Out, Rectangular)', tier1: true },
-      { name: 'Puzzles: Floor, Box, Month-Date & Multi-Variable Constraints', tier1: true },
-      { name: 'Inequalities: Direct & Coded Statement Inequalities', tier1: false },
-      { name: 'Clocks & Calendars (Angle, Gain/Loss, Day Calculation)', tier1: true },
-      { name: 'Statement & Assumptions', tier1: true },
-      { name: 'Statement & Conclusions / Inferences', tier1: true },
-      { name: 'Statement & Arguments (Strong vs Weak)', tier1: true },
-      { name: 'Course of Action & Cause-Effect Relationships', tier1: true },
-      { name: 'Figure Series & Pattern Completion', tier1: true },
-      { name: 'Figure Analogy & Classification (Odd One Out)', tier1: true },
-      { name: 'Mirror Images & Water Images', tier1: true },
-      { name: 'Paper Folding & Paper Cutting', tier1: true },
-      { name: 'Embedded Figures & Hidden Shapes', tier1: true },
-      { name: 'Figure Matrix & Rule Detection', tier1: true },
-      { name: 'Cube & Dice (Open Dice, Folded Dice, Opposite Faces)', tier1: true },
-      { name: 'Dot Situation & Spatial Ability (AFCAT specific)', tier1: true },
-      { name: 'Counting of Figures (Triangles, Squares, Rectangles, Lines)', tier1: true }
+      { name: 'Analogy & Classification (Word, Number, Letter)', tier1: true, refChapter: 'RS Aggarwal Verbal Ch 1 & 2' },
+      { name: 'Number Series, Alphabet Series, Mixed Series & Missing Terms', tier1: true, refChapter: 'RS Aggarwal Verbal Ch 3 & 4' },
+      { name: 'Coding-Decoding: Letter Shifting, Substitution, Matrix & Binary', tier1: true, refChapter: 'RS Aggarwal Verbal Ch 5' },
+      { name: 'Blood Relations: Coded, Decoded & Direct Relations', tier1: true, refChapter: 'RS Aggarwal Verbal Ch 6' },
+      { name: 'Direction Sense & Distance (Shadow & Angle Turns)', tier1: true, refChapter: 'RS Aggarwal Verbal Ch 8' },
+      { name: 'Order, Ranking & Comparison Tests', tier1: true, refChapter: 'RS Aggarwal Verbal Ch 12' },
+      { name: 'Syllogisms (Standard, Possibility & Only a Few cases)', tier1: true, refChapter: 'MK Pandey Analytical Reasoning Ch 4' },
+      { name: 'Venn Diagrams (Geometric & Logical Venn)', tier1: true, refChapter: 'RS Aggarwal Verbal Ch 9' },
+      { name: 'Seating Arrangement (Linear, Circular, Facing In/Out, Rectangular)', tier1: true, refChapter: 'MK Pandey Analytical Reasoning Ch 7' },
+      { name: 'Puzzles: Floor, Box, Month-Date & Multi-Variable Constraints', tier1: true, refChapter: 'MK Pandey Analytical Reasoning Ch 8' },
+      { name: 'Inequalities: Direct & Coded Statement Inequalities', tier1: false, refChapter: 'MK Pandey Analytical Reasoning Ch 5' },
+      { name: 'Clocks & Calendars (Angle, Gain/Loss, Day Calculation)', tier1: true, refChapter: 'RS Aggarwal Verbal Ch 14 & 15' },
+      { name: 'Statement & Assumptions', tier1: true, refChapter: 'MK Pandey Analytical Reasoning Ch 1' },
+      { name: 'Statement & Conclusions / Inferences', tier1: true, refChapter: 'MK Pandey Analytical Reasoning Ch 2' },
+      { name: 'Statement & Arguments (Strong vs Weak)', tier1: true, refChapter: 'MK Pandey Analytical Reasoning Ch 3' },
+      { name: 'Course of Action & Cause-Effect Relationships', tier1: true, refChapter: 'MK Pandey Analytical Reasoning Ch 6' },
+      { name: 'Figure Series & Pattern Completion', tier1: true, refChapter: 'RS Aggarwal Non-Verbal Ch 1 & 3' },
+      { name: 'Figure Analogy & Classification (Odd One Out)', tier1: true, refChapter: 'RS Aggarwal Non-Verbal Ch 2 & 4' },
+      { name: 'Mirror Images & Water Images', tier1: true, refChapter: 'RS Aggarwal Non-Verbal Ch 5 & 6' },
+      { name: 'Paper Folding & Paper Cutting', tier1: true, refChapter: 'RS Aggarwal Non-Verbal Ch 8 & 9' },
+      { name: 'Embedded Figures & Hidden Shapes', tier1: true, refChapter: 'RS Aggarwal Non-Verbal Ch 7' },
+      { name: 'Figure Matrix & Rule Detection', tier1: true, refChapter: 'RS Aggarwal Non-Verbal Ch 11' },
+      { name: 'Cube & Dice (Open Dice, Folded Dice, Opposite Faces)', tier1: true, refChapter: 'RS Aggarwal Non-Verbal Ch 10' },
+      { name: 'Dot Situation & Spatial Ability (AFCAT specific)', tier1: true, refChapter: 'Pathfinder AFCAT Non-Verbal Section' },
+      { name: 'Counting of Figures (Triangles, Squares, Rectangles, Lines)', tier1: true, refChapter: 'RS Aggarwal Non-Verbal Ch 12' }
     ]
   },
   {
     id: 'english',
-    name: 'English Language & Verbal Ability (Objective Core)',
+    subject: 'English',
+    name: 'English Language & Verbal Ability',
+    bookRef: 'SP Bakshi Objective General English + Word Power Made Easy',
     chapters: [
-      { name: 'Parts of Speech & Fundamental Sentence Structures', tier1: false },
-      { name: 'Tenses: Rules, Exceptions, Sequence of Tenses & Conditionals', tier1: true },
-      { name: 'Subject-Verb Agreement (Syntax & Irregular Rules)', tier1: true },
-      { name: 'Nouns, Pronouns, Modifiers & Ambiguous References', tier1: false },
-      { name: 'Articles & Determinations', tier1: false },
-      { name: 'Prepositions & Fixed Prepositional Phrases', tier1: true },
-      { name: 'Conjunctions, Inversion Rules & Parallelism', tier1: true },
-      { name: 'Active & Passive Voice (Transformation of Complex Sentences)', tier1: true },
-      { name: 'Direct & Indirect Speech (Narration Rules for Interrogative/Imperative)', tier1: true },
-      { name: 'Common Error Spotting & Grammatical Faults', tier1: true },
-      { name: 'Sentence Improvement & Phrase Replacement', tier1: true },
-      { name: 'Sentence Completion & Fill in the Blanks', tier1: false },
-      { name: 'Cloze Test: Contextual Word Filling & Grammar Integration', tier1: true },
-      { name: 'Para Jumbles & Sentence Rearrangement (S1-S6 sequence)', tier1: true },
-      { name: 'Reading Comprehension: Tone, Central Idea, Inference & Vocabulary in Context', tier1: true },
-      { name: 'Vocabulary: High-Frequency Root Words, Prefixes & Suffixes', tier1: true },
-      { name: 'Synonyms & Antonyms (Context-Driven)', tier1: true },
-      { name: 'Idioms, Phrases & Phrasal Verbs', tier1: true },
-      { name: 'One Word Substitution (OWS)', tier1: true },
-      { name: 'Spelling Correction & Commonly Confused Homophones', tier1: true }
+      { name: 'Parts of Speech & Fundamental Sentence Structures', tier1: false, refChapter: 'SP Bakshi Unit 1' },
+      { name: 'Tenses: Rules, Exceptions, Sequence of Tenses & Conditionals', tier1: true, refChapter: 'SP Bakshi Ch 1' },
+      { name: 'Subject-Verb Agreement (Syntax & Irregular Rules)', tier1: true, refChapter: 'SP Bakshi Ch 3' },
+      { name: 'Nouns, Pronouns, Modifiers & Ambiguous References', tier1: false, refChapter: 'SP Bakshi Ch 4 & 5' },
+      { name: 'Articles & Determinations', tier1: false, refChapter: 'SP Bakshi Ch 2' },
+      { name: 'Prepositions & Fixed Prepositional Phrases', tier1: true, refChapter: 'SP Bakshi Ch 8' },
+      { name: 'Conjunctions, Inversion Rules & Parallelism', tier1: true, refChapter: 'SP Bakshi Ch 9' },
+      { name: 'Active & Passive Voice (Transformation of Complex Sentences)', tier1: true, refChapter: 'SP Bakshi Ch 6' },
+      { name: 'Direct & Indirect Speech (Narration Rules for Interrogative/Imperative)', tier1: true, refChapter: 'SP Bakshi Ch 7' },
+      { name: 'Common Error Spotting & Grammatical Faults', tier1: true, refChapter: 'SP Bakshi Revision Exercises A-D' },
+      { name: 'Sentence Improvement & Phrase Replacement', tier1: true, refChapter: 'SP Bakshi Section B' },
+      { name: 'Sentence Completion & Fill in the Blanks', tier1: false, refChapter: 'SP Bakshi Section B' },
+      { name: 'Cloze Test: Contextual Word Filling & Grammar Integration', tier1: true, refChapter: 'SP Bakshi Section B Unit 3' },
+      { name: 'Para Jumbles & Sentence Rearrangement (S1-S6 sequence)', tier1: true, refChapter: 'SP Bakshi Section B Unit 4' },
+      { name: 'Reading Comprehension: Tone, Central Idea, Inference & Vocabulary in Context', tier1: true, refChapter: 'SP Bakshi Section B Unit 5' },
+      { name: 'Vocabulary: High-Frequency Root Words, Prefixes & Suffixes', tier1: true, refChapter: 'Word Power Made Easy' },
+      { name: 'Synonyms & Antonyms (Context-Driven)', tier1: true, refChapter: 'Black Book of English Vocabulary' },
+      { name: 'Idioms, Phrases & Phrasal Verbs', tier1: true, refChapter: 'Black Book of English Vocabulary' },
+      { name: 'One Word Substitution (OWS)', tier1: true, refChapter: 'Black Book of English Vocabulary' },
+      { name: 'Spelling Correction & Commonly Confused Homophones', tier1: true, refChapter: 'SP Bakshi Section C' }
     ]
   },
   {
     id: 'writing',
-    name: 'Descriptive Mastery & SSB/CAPF Strategic Analysis (Paper 2)',
+    subject: 'Writing',
+    name: 'Descriptive Mastery & SSB/CAPF Strategic Analysis',
+    bookRef: 'Internal Security (Ashok Kumar IPS) + IDSA Strategic Monograms',
     chapters: [
-      { name: 'Essay Writing: Structural Architecture (Hook, Thesis, Dimensions, Way Forward)', tier1: true },
-      { name: 'Precis Writing: Rules, Word-Count Condensation & Strict Objective Framing', tier1: true },
-      { name: 'Report Writing: Standard Government & Administrative Format', tier1: true },
-      { name: 'Argument Writing: For vs Against Balanced Evidence Generation', tier1: true },
-      { name: 'Subjective Reading Comprehension: Answer Formulation Methodology', tier1: true },
-      { name: 'Theme 1: Internal Security (Left Wing Extremism, Insurgency in North East)', tier1: true },
-      { name: 'Theme 2: Border Management & Coastal Security Infrastructure', tier1: true },
-      { name: 'Theme 3: Modern Warfare (Cyber Warfare, Drones, AI in Defence, C4ISR)', tier1: true },
-      { name: 'Theme 4: India’s Neighborhood First Policy & South Asia Dynamics', tier1: true },
-      { name: 'Theme 5: Indo-Pacific Strategy, QUAD, I2U2 & Maritime Geopolitics', tier1: true },
-      { name: 'Theme 6: Indian Economy: 5 Trillion Goal, Manufacturing & Job Creation', tier1: true },
-      { name: 'Theme 7: Social Issues: Women Empowerment, Health & Education Policy', tier1: true },
-      { name: 'Theme 8: Climate Change, Renewable Energy Transition & COP Commitments', tier1: true },
-      { name: 'Theme 9: Agriculture Reforms, Tech in Farming & Food Processing', tier1: true },
-      { name: 'Theme 10: Democratic Institutions, Electoral Reforms & Cooperative Federalism', tier1: true }
+      { name: 'Essay Writing: Structural Architecture (Hook, Thesis, Dimensions, Way Forward)', tier1: true, refChapter: 'Drishti IAS Essay Frameworks' },
+      { name: 'Precis Writing: Rules, Word-Count Condensation & Strict Objective Framing', tier1: true, refChapter: 'Wren & Martin Descriptive Grammar' },
+      { name: 'Report Writing: Standard Government & Administrative Format', tier1: true, refChapter: 'CAPF Paper 2 Manual' },
+      { name: 'Argument Writing: For vs Against Balanced Evidence Generation', tier1: true, refChapter: 'CAPF Paper 2 Manual' },
+      { name: 'Subjective Reading Comprehension: Answer Formulation Methodology', tier1: true, refChapter: 'CAPF Paper 2 Manual' },
+      { name: 'Theme 1: Internal Security (Left Wing Extremism, Insurgency in North East)', tier1: true, refChapter: 'Ashok Kumar IPS Ch 1 & 2' },
+      { name: 'Theme 2: Border Management & Coastal Security Infrastructure', tier1: true, refChapter: 'Ashok Kumar IPS Ch 4' },
+      { name: 'Theme 3: Modern Warfare (Cyber Warfare, Drones, AI in Defence, C4ISR)', tier1: true, refChapter: 'IDSA Monograms on Cyber/Drones' },
+      { name: 'Theme 4: India’s Neighborhood First Policy & South Asia Dynamics', tier1: true, refChapter: 'MEA Annual Reports / Rajiv Sikri' },
+      { name: 'Theme 5: Indo-Pacific Strategy, QUAD, I2U2 & Maritime Geopolitics', tier1: true, refChapter: 'ORF Indo-Pacific Strategy Briefs' },
+      { name: 'Theme 6: Indian Economy: 5 Trillion Goal, Manufacturing & Job Creation', tier1: true, refChapter: 'Economic Survey Chapter 1 & 2' },
+      { name: 'Theme 7: Social Issues: Women Empowerment, Health & Education Policy', tier1: true, refChapter: 'NITI Aayog Strategy for New India' },
+      { name: 'Theme 8: Climate Change, Renewable Energy Transition & COP Commitments', tier1: true, refChapter: 'MoEFCC Annual Report' },
+      { name: 'Theme 9: Agriculture Reforms, Tech in Farming & Food Processing', tier1: true, refChapter: 'NITI Aayog Agri Taskforce' },
+      { name: 'Theme 10: Democratic Institutions, Electoral Reforms & Cooperative Federalism', tier1: true, refChapter: 'Law Commission Reports' }
     ]
   }
 ];
@@ -345,7 +364,6 @@ function daysSince(dateStr) { if (!dateStr) return 999; return Math.floor((new D
 function daysUntil(dateStr) { return Math.ceil((new Date(dateStr) - new Date()) / 86400000); }
 function todayStr() { return new Date().toISOString().slice(0, 10); }
 
-// Calendar helper functions
 function isTodaySunday() { return new Date().getDay() === 0; }
 function isTodayMonthEnd() {
   const d = new Date();
@@ -375,6 +393,12 @@ export default function PrepOS() {
   const [manualQuizMode, setManualQuizMode] = useState(false);
   const [quizIdx, setQuizIdx] = useState(0);
   const [quizRevealed, setQuizRevealed] = useState(false);
+
+  // AI Agent States
+  const [loadingAgent, setLoadingAgent] = useState(false);
+  const [activeDrill, setActiveDrill] = useState(null); // 5-MCQ Drill Object
+  const [drillAnswers, setDrillAnswers] = useState({});
+  const [sparringResult, setSparringResult] = useState(null);
 
   useEffect(() => {
     (async () => {
@@ -427,7 +451,7 @@ export default function PrepOS() {
     setKey('dailyTarget', num);
   }
 
-  // --- Multi-Stage Checklist Logic (0 -> 1 -> 2 -> 3 -> 0) ---
+  // --- Multi-Stage Checklist Logic ---
   function cycleChapterRevision(resId, idx) {
     const key = `${resId}-${idx}`;
     const curLevel = checklist[key] || 0;
@@ -438,13 +462,12 @@ export default function PrepOS() {
     pushAudit(`Updated revision level to R${nextLevel} for ${resId} [Ch ${idx + 1}]`);
   }
 
-  // --- Vocab Engine Logic (with safe delimiter splitting) ---
+  // --- Vocab Engine Logic ---
   function submitDailyVocab() {
     const date = todayStr();
     const newItems = [];
     const delimiter = /[\-\:\u2013]/;
 
-    // Parse words
     const wordsLines = rawWordsInput.split('\n').map(l => l.trim()).filter(Boolean);
     wordsLines.forEach(line => {
       const parts = line.split(delimiter);
@@ -455,7 +478,6 @@ export default function PrepOS() {
       }
     });
 
-    // Parse idioms
     const idiomsLines = rawIdiomsInput.split('\n').map(l => l.trim()).filter(Boolean);
     idiomsLines.forEach(line => {
       const parts = line.split(delimiter);
@@ -482,7 +504,6 @@ export default function PrepOS() {
     setKey('vocabList', next);
   }
 
-  // Determine active quiz pool
   const isSunday = isTodaySunday();
   const isMonthEnd = isTodayMonthEnd();
   const isQuizDay = isSunday || isMonthEnd || manualQuizMode;
@@ -492,7 +513,6 @@ export default function PrepOS() {
       const currentMonth = todayStr().slice(0, 7);
       return vocabList.filter(v => v.date && v.date.startsWith(currentMonth));
     }
-    // Default to last 7 days pool for Sunday audit
     return vocabList.filter(v => daysSince(v.date) <= 7);
   }
 
@@ -514,7 +534,7 @@ export default function PrepOS() {
     }
   }
 
-  // --- Mocks with Speed & Negative Bleed Logic ---
+  // --- Mocks with Speed & Diagnostic Forensics ---
   const [tForm, setTForm] = useState({ 
     subject: SUBJECTS[0], topic: '', exams: [], 
     totalQ: '', correctQ: '', wrongQ: '', time: '', 
@@ -622,7 +642,110 @@ export default function PrepOS() {
   }
   function deleteAnalysis(id) { const next = analyses.filter(a => a.id !== id); setAnalyses(next); setKey('analyses', next); }
 
-  // --- Computations ---
+  // --- AI Agent Tool Integrations ---
+  async function triggerAgentDrill(prescription) {
+    setLoadingAgent(true);
+    setDrillAnswers({});
+    try {
+      const res = await fetch('/.netlify/functions/agent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'generate_trap_drill',
+          payload: {
+            subject: prescription.subject,
+            topic: prescription.topic,
+            errorType: prescription.errorType,
+            memoryTrap: prescription.memoryTrap
+          }
+        })
+      });
+      if (!res.ok) throw new Error('Agent service error');
+      const drillData = await res.json();
+      setActiveDrill(drillData);
+      pushAudit(`AI Diagnostic Drill synthesized for ${prescription.topic}`);
+    } catch (e) {
+      alert('AI Agent could not synthesize drill. Verify GEMINI_API_KEY on Netlify.');
+    } finally {
+      setLoadingAgent(false);
+    }
+  }
+
+  async function triggerSparringAgent(analysisObj) {
+    setLoadingAgent(true);
+    try {
+      const res = await fetch('/.netlify/functions/agent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'spar_argument',
+          payload: {
+            topic: analysisObj.topic,
+            userPosition: analysisObj.position || 'Not explicitly stated',
+            currentPoints: `Cause: ${analysisObj.cause}. Effects: ${analysisObj.effects}. Counter: ${analysisObj.counterArguments}`
+          }
+        })
+      });
+      if (!res.ok) throw new Error('Sparring service error');
+      const result = await res.json();
+      setSparringResult({ topic: analysisObj.topic, ...result });
+      pushAudit(`SSB/CAPF AI Sparring completed on ${analysisObj.topic}`);
+    } catch (e) {
+      alert('SSB Sparring Agent unavailable. Verify GEMINI_API_KEY on Netlify.');
+    } finally {
+      setLoadingAgent(false);
+    }
+  }
+
+  // --- Diagnostic Forensic Agent Computations ---
+  function computeDiagnosticsAndWeakAreas() {
+    const weakChapterMap = {};
+    const prescriptions = [];
+
+    topics.forEach(t => {
+      if (t.accuracy < 65 || t.errorType === 'conceptual') {
+        const lowerTopic = t.topic.toLowerCase();
+
+        RESOURCES.forEach(res => {
+          if (res.subject.toLowerCase() === t.subject.toLowerCase() || t.subject.toLowerCase().includes(res.id)) {
+            res.chapters.forEach((chap, idx) => {
+              const lowerChap = chap.name.toLowerCase();
+              const words = lowerTopic.split(' ').filter(w => w.length > 3);
+              const isMatch = lowerChap.includes(lowerTopic) || words.some(w => lowerChap.includes(w));
+
+              if (isMatch) {
+                const key = `${res.id}-${idx}`;
+                weakChapterMap[key] = {
+                  subject: res.subject,
+                  resName: res.name,
+                  bookRef: res.bookRef,
+                  chapterName: chap.name,
+                  refChapter: chap.refChapter,
+                  lastAccuracy: t.accuracy,
+                  errorType: t.errorType,
+                  memoryTrap: t.memoryTrap
+                };
+              }
+            });
+          }
+        });
+
+        prescriptions.push({
+          id: t.id,
+          date: t.date,
+          subject: t.subject,
+          topic: t.topic,
+          accuracy: t.accuracy,
+          errorType: t.errorType,
+          memoryTrap: t.memoryTrap,
+          bookRef: RESOURCES.find(r => r.subject.toLowerCase() === t.subject.toLowerCase())?.bookRef || 'Standard Recommended Text'
+        });
+      }
+    });
+
+    return { weakChapterMap, prescriptions };
+  }
+
   function computePriority() {
     const map = {};
     topics.forEach(e => {
@@ -699,6 +822,7 @@ export default function PrepOS() {
 
   if (loading) return <div className="p-6 text-slate-400 font-mono text-sm bg-slate-950 min-h-screen">loading prep-os...</div>;
 
+  const { weakChapterMap, prescriptions } = computeDiagnosticsAndWeakAreas();
   const priority = computePriority();
   const { brier, rows } = computeCalibration();
   const due = computeDue();
@@ -766,7 +890,6 @@ export default function PrepOS() {
           {/* TAB 1: DASHBOARD */}
           {tab === 'dashboard' && (
             <div className="space-y-5">
-              {/* Daily Target Meter */}
               <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-3.5 flex flex-col gap-2">
                 <div className="flex justify-between items-center text-xs font-mono">
                   <div className="flex items-center gap-1.5 text-slate-300">
@@ -790,7 +913,18 @@ export default function PrepOS() {
                 </div>
               </div>
 
-              {/* Exam Countdowns */}
+              {Object.keys(weakChapterMap).length > 0 && (
+                <div className="bg-rose-950/30 border border-rose-800/60 rounded-xl p-3.5 flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-rose-300 text-xs font-mono">
+                    <FlameKindling size={15} className="text-rose-400 animate-pulse" />
+                    <span><strong>Forensics Alert:</strong> {Object.keys(weakChapterMap).length} Weak Syllabus Chapters identified for immediate re-reading.</span>
+                  </div>
+                  <button onClick={() => { setTab('analytics'); setSubtab('diagnostics'); }} className="text-xs font-mono px-2.5 py-1 bg-rose-900 hover:bg-rose-800 text-rose-200 rounded transition flex items-center gap-1">
+                    <span>Prescriptions</span> &rarr;
+                  </button>
+                </div>
+              )}
+
               <div className="grid grid-cols-2 gap-3">
                 {Object.entries(EXAM_DATES).map(([ex, date]) => (
                   <div key={ex} className="bg-slate-900 rounded-xl p-3.5 border border-slate-800/80">
@@ -801,7 +935,6 @@ export default function PrepOS() {
                 ))}
               </div>
 
-              {/* 7-Day Velocity Chart */}
               <div>
                 <div className="text-xs text-slate-500 font-mono mb-2">velocity — last 7 days</div>
                 <div className="flex items-end gap-2 h-24 bg-slate-900 rounded-xl p-3 border border-slate-800/80">
@@ -815,7 +948,6 @@ export default function PrepOS() {
                 </div>
               </div>
 
-              {/* High-Level Counter Metrics */}
               <div className="grid grid-cols-4 gap-2 text-center">
                 <div className="bg-slate-900 rounded-xl p-3 border border-slate-800/80"><div className="text-base font-mono text-slate-100">{vocabList.length}</div><div className="text-[11px] text-slate-500">vocab items</div></div>
                 <div className="bg-slate-900 rounded-xl p-3 border border-slate-800/80"><div className="text-base font-mono text-slate-100">{masteredChapters}/{totalChapters}</div><div className="text-[11px] text-slate-500">R3 done</div></div>
@@ -823,7 +955,6 @@ export default function PrepOS() {
                 <div className="bg-slate-900 rounded-xl p-3 border border-slate-800/80"><div className="text-base font-mono text-slate-100">{analyses.length}</div><div className="text-[11px] text-slate-500">analyses</div></div>
               </div>
 
-              {/* Priority Attention */}
               {priority.length > 0 && (
                 <div>
                   <div className="text-xs text-slate-500 font-mono mb-2">urgent priority — weakest retained concepts</div>
@@ -866,7 +997,6 @@ export default function PrepOS() {
           {/* TAB 3: VOCAB & IDIOMS (BLACK BOOK ENGINE) */}
           {tab === 'vocab' && (
             <div className="space-y-5">
-              {/* Header & Controls */}
               <div className="bg-slate-900/80 p-3.5 rounded-xl border border-slate-800 flex justify-between items-center">
                 <div>
                   <div className="text-xs font-mono uppercase text-teal-400 font-semibold flex items-center gap-1.5">
@@ -886,7 +1016,6 @@ export default function PrepOS() {
                 </button>
               </div>
 
-              {/* FLASHCARD / AUDIT MODE */}
               {isQuizDay ? (
                 <div className="space-y-4">
                   <div className="bg-amber-950/30 border border-amber-800/60 rounded-xl p-3 text-xs text-amber-300 font-mono flex items-center justify-between">
@@ -943,10 +1072,8 @@ export default function PrepOS() {
                   )}
                 </div>
               ) : (
-                /* DAILY INPUT MODE (Mon - Sat) */
                 <div className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {/* 30 Words Box */}
                     <div className="space-y-1.5">
                       <label className="text-xs font-mono text-slate-400 flex justify-between">
                         <span>30 Daily Words (Black Book)</span>
@@ -961,7 +1088,6 @@ export default function PrepOS() {
                       />
                     </div>
 
-                    {/* 10 Idioms / Phrases Box */}
                     <div className="space-y-1.5">
                       <label className="text-xs font-mono text-slate-400 flex justify-between">
                         <span>10 Idioms / Phrasal Verbs</span>
@@ -984,7 +1110,6 @@ export default function PrepOS() {
                     audit & save daily vocab
                   </button>
 
-                  {/* Recents Bank */}
                   <div className="pt-3 border-t border-slate-800 space-y-2">
                     <div className="text-xs text-slate-500 font-mono flex justify-between">
                       <span>Logged Vocab Vault ({vocabList.length} items stored)</span>
@@ -1013,7 +1138,7 @@ export default function PrepOS() {
             </div>
           )}
 
-          {/* TAB 4: 3-STAGE REVISION CHECKLIST (R1, R2, R3) */}
+          {/* TAB 4: 3-STAGE REVISION CHECKLIST (WITH FORENSIC WEAK BLINKING BADGES) */}
           {tab === 'checklist' && (
             <div className="space-y-6">
               <div className="text-xs text-slate-500 font-mono flex items-center justify-between">
@@ -1026,17 +1151,22 @@ export default function PrepOS() {
                 const r3Count = r.chapters.filter((_, i) => (checklist[`${r.id}-${i}`] || 0) >= 3).length;
                 return (
                   <div key={r.id} className="bg-slate-900/60 p-3.5 rounded-xl border border-slate-800">
-                    <div className="flex justify-between items-center mb-2">
+                    <div className="flex justify-between items-center mb-1">
                       <div className="text-sm font-medium text-slate-200">{r.name}</div>
                       <div className="text-xs font-mono text-slate-500">{r3Count}/{total} R3</div>
                     </div>
+                    <div className="text-[11px] text-slate-500 font-mono mb-2">Book: {r.bookRef}</div>
+                    
                     <div className="w-full h-1.5 bg-slate-800 rounded-full mb-3 overflow-hidden">
                       <div className="h-full bg-teal-500" style={{ width: `${(r3Count / total) * 100}%` }} />
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-1.5">
                       {r.chapters.map((c, i) => {
-                        const level = checklist[`${r.id}-${i}`] || 0;
+                        const key = `${r.id}-${i}`;
+                        const level = checklist[key] || 0;
+                        const isWeakArea = !!weakChapterMap[key];
+
                         const levelStyles = [
                           'text-slate-500 border-slate-800 bg-slate-950/40',
                           'text-amber-300 border-amber-900/60 bg-amber-950/20',
@@ -1049,15 +1179,31 @@ export default function PrepOS() {
                           <button 
                             key={i} 
                             onClick={() => cycleChapterRevision(r.id, i)} 
-                            className={`text-left text-xs px-2.5 py-2 rounded-lg flex items-center justify-between border transition ${levelStyles[level]}`}
+                            className={`text-left text-xs px-2.5 py-2 rounded-lg flex items-center justify-between border transition ${
+                              isWeakArea ? 'border-rose-500/80 bg-rose-950/30 ring-1 ring-rose-500/50 shadow-lg shadow-rose-950/50' : levelStyles[level]
+                            }`}
                           >
                             <div className="flex items-center gap-1.5 truncate">
-                              {c.tier1 && <span className="text-amber-400 text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-950/80 border border-amber-800/60">★ Tier 1</span>}
-                              <span className="truncate">{c.name}</span>
+                              {isWeakArea && (
+                                <span className="flex h-2 w-2 relative flex-shrink-0">
+                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                                  <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
+                                </span>
+                              )}
+                              {c.tier1 && <span className="text-amber-400 text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-950/80 border border-amber-800/60 flex-shrink-0">★ Tier 1</span>}
+                              <span className={`truncate ${isWeakArea ? 'text-rose-200 font-semibold' : ''}`}>{c.name}</span>
                             </div>
-                            <span className="font-mono text-[10px] ml-2 px-1.5 py-0.5 rounded bg-slate-900/80 border border-slate-700/50">
-                              {levelLabels[level]}
-                            </span>
+
+                            <div className="flex items-center gap-1.5 ml-2 flex-shrink-0">
+                              {isWeakArea && (
+                                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-rose-900 text-rose-200 border border-rose-700 animate-pulse">
+                                  READ: {c.refChapter}
+                                </span>
+                              )}
+                              <span className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-slate-900/80 border border-slate-700/50">
+                                {levelLabels[level]}
+                              </span>
+                            </div>
                           </button>
                         );
                       })}
@@ -1148,14 +1294,149 @@ export default function PrepOS() {
             </div>
           )}
 
-          {/* TAB 6: ANALYTICS */}
+          {/* TAB 6: ANALYTICS & DIAGNOSTIC FORENSICS (WITH AI TRAP DRILLS) */}
           {tab === 'analytics' && (
             <div>
               <div className="flex gap-2 mb-4 flex-wrap">
-                {['priority', 'calibration', 'srs', 'errors'].map(s => (
-                  <button key={s} onClick={() => setSubtab(s)} className={`px-3 py-1.5 rounded-lg text-xs font-mono transition ${subtab === s ? 'bg-teal-950 text-teal-300 border border-teal-600' : 'bg-slate-900 text-slate-500 border border-slate-700'}`}>{s}</button>
+                {['diagnostics', 'priority', 'calibration', 'srs', 'errors'].map(s => (
+                  <button key={s} onClick={() => setSubtab(s)} className={`px-3 py-1.5 rounded-lg text-xs font-mono transition ${subtab === s ? 'bg-teal-950 text-teal-300 border border-teal-600' : 'bg-slate-900 text-slate-500 border border-slate-700'}`}>
+                    {s === 'diagnostics' ? '🚨 diagnostics & readings' : s}
+                  </button>
                 ))}
               </div>
+
+              {/* ACTIVE AI DIAGNOSTIC DRILL MODAL */}
+              {activeDrill && (
+                <div className="bg-slate-900 border-2 border-teal-500/80 rounded-2xl p-5 mb-5 space-y-4 animate-fade-in shadow-2xl">
+                  <div className="flex justify-between items-start border-b border-slate-800 pb-3">
+                    <div>
+                      <div className="text-xs font-mono uppercase tracking-wider text-teal-400 font-semibold flex items-center gap-1.5">
+                        <Sparkles size={14} />
+                        <span>AI Diagnostic Forensics & 5-Trap Adaptive Drill</span>
+                      </div>
+                      <p className="text-xs text-slate-300 mt-1">{activeDrill.topicDiagnostic}</p>
+                      <p className="text-[11px] text-amber-300 font-mono mt-0.5">Recommended Study: {activeDrill.recommendedChapterReRead}</p>
+                    </div>
+                    <button onClick={() => setActiveDrill(null)} className="text-slate-500 hover:text-slate-300 p-1">
+                      <X size={16} />
+                    </button>
+                  </div>
+
+                  <div className="space-y-4">
+                    {activeDrill.questions.map((q, qIdx) => {
+                      const selected = drillAnswers[qIdx];
+                      const isAnswered = selected !== undefined;
+                      const isCorrect = selected === q.correctIndex;
+
+                      return (
+                        <div key={qIdx} className="bg-slate-950/70 p-3.5 rounded-xl border border-slate-800 space-y-2.5">
+                          <div className="text-xs text-slate-200 font-medium">
+                            <span className="text-teal-400 font-mono mr-1.5">Q{qIdx + 1}.</span>
+                            {q.question}
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                            {q.options.map((opt, optIdx) => {
+                              const isThisSelected = selected === optIdx;
+                              let btnStyle = 'bg-slate-900 border-slate-800 text-slate-300 hover:bg-slate-800';
+
+                              if (isAnswered) {
+                                if (optIdx === q.correctIndex) {
+                                  btnStyle = 'bg-emerald-950 border-emerald-600 text-emerald-300 font-semibold';
+                                } else if (isThisSelected) {
+                                  btnStyle = 'bg-rose-950 border-rose-600 text-rose-300';
+                                } else {
+                                  btnStyle = 'bg-slate-900/50 border-slate-800/40 text-slate-600';
+                                }
+                              }
+
+                              return (
+                                <button
+                                  key={optIdx}
+                                  disabled={isAnswered}
+                                  onClick={() => setDrillAnswers(prev => ({ ...prev, [qIdx]: optIdx }))}
+                                  className={`text-left text-xs p-2.5 rounded-lg border transition ${btnStyle}`}
+                                >
+                                  {opt}
+                                </button>
+                              );
+                            })}
+                          </div>
+
+                          {isAnswered && (
+                            <div className={`p-2.5 rounded-lg text-xs font-mono mt-2 border ${isCorrect ? 'bg-emerald-950/40 border-emerald-800/60 text-emerald-300' : 'bg-rose-950/40 border-rose-800/60 text-rose-300'}`}>
+                              <div className="font-semibold">{isCorrect ? '✓ Correct Reasoning' : '✗ Distractor Trap Triggered'}</div>
+                              <div className="text-[11px] text-slate-400 mt-0.5">{q.trapExplanation}</div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* SUBTAB: DIAGNOSTICS & EXACT READING PRESCRIPTIONS */}
+              {subtab === 'diagnostics' && (
+                <div className="space-y-4">
+                  <div className="text-xs text-slate-500 font-mono">
+                    diagnostic agent forensics &bull; extracts identified weak areas and provides exact chapter reading prescriptions + AI adaptive trap drills
+                  </div>
+
+                  {prescriptions.length === 0 ? (
+                    <div className="text-sm text-slate-500 text-center py-10 bg-slate-900/40 rounded-xl border border-slate-800">
+                      Zero critical weak areas detected. Maintain high-accuracy mock execution.
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {prescriptions.map((p, i) => (
+                        <div key={i} className="bg-slate-900 border border-rose-900/50 rounded-xl p-4 space-y-2">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <div className="text-xs font-mono text-rose-400 flex items-center gap-1.5 font-semibold">
+                                <AlertTriangle size={13} />
+                                <span>WEAK AREA IDENTIFIED: {p.subject} &bull; {p.topic}</span>
+                              </div>
+                              <div className="text-[11px] text-slate-400 font-mono mt-0.5">
+                                Logged Accuracy: <span className="text-rose-400 font-bold">{p.accuracy}%</span> &bull; Error Type: <span className="text-amber-300">{p.errorType || 'Unclassified'}</span>
+                              </div>
+                            </div>
+                            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-rose-950 text-rose-300 border border-rose-800">
+                              Re-read Required
+                            </span>
+                          </div>
+
+                          <div className="bg-slate-950 p-3 rounded-lg border border-slate-800 text-xs space-y-1">
+                            <div className="text-teal-400 font-mono text-[11px] flex items-center gap-1">
+                              <BookMarked size={12} />
+                              <span>Standard Resource Prescription:</span>
+                            </div>
+                            <div className="text-slate-200 font-medium">{p.bookRef}</div>
+                            {p.memoryTrap && (
+                              <div className="text-[11px] text-amber-400/90 font-mono pt-1">
+                                Core Trap Noted: {p.memoryTrap}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Trigger AI Diagnostic 5-Trap Drill */}
+                          <button
+                            disabled={loadingAgent}
+                            onClick={() => triggerAgentDrill(p)}
+                            className="mt-2 w-full py-2 bg-rose-950/80 hover:bg-rose-900 border border-rose-700/80 text-rose-200 text-xs font-mono rounded-lg flex items-center justify-center gap-1.5 transition"
+                          >
+                            {loadingAgent ? (
+                              <><Loader2 size={13} className="animate-spin" /><span>Synthesizing Adaptive Trap Drill...</span></>
+                            ) : (
+                              <><Sparkles size={13} className="text-rose-400" /><span>Generate 5-Question AI Diagnostic Drill</span></>
+                            )}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {subtab === 'priority' && (
                 <div className="space-y-2">
@@ -1190,7 +1471,6 @@ export default function PrepOS() {
                 </div>
               )}
 
-              {/* Active Recall SRS Subtab */}
               {subtab === 'srs' && (
                 <div className="space-y-2">
                   <div className="text-xs text-slate-500 font-mono mb-2">active recall queue &bull; recall core trap before checking answer</div>
@@ -1255,7 +1535,7 @@ export default function PrepOS() {
             </div>
           )}
 
-          {/* TAB 7: ANALYSIS BANK */}
+          {/* TAB 7: ANALYSIS BANK (WITH AI SSB SPARRING AGENT) */}
           {tab === 'analysis' && (
             <div className="space-y-4">
               <div className="text-xs text-slate-500 font-mono mb-1">structured analytical synthesis for descriptive papers & ssb lecturettes</div>
@@ -1270,6 +1550,48 @@ export default function PrepOS() {
               ))}
               
               <button onClick={submitAnalysis} className="w-full bg-teal-600 hover:bg-teal-500 text-slate-950 font-medium rounded-lg py-2.5 text-sm transition">save structured analysis</button>
+
+              {/* ACTIVE SSB SPARRING OUTPUT MODAL */}
+              {sparringResult && (
+                <div className="bg-slate-900 border-2 border-indigo-500/80 rounded-2xl p-5 my-4 space-y-4 shadow-2xl animate-fade-in">
+                  <div className="flex justify-between items-start border-b border-slate-800 pb-3">
+                    <div>
+                      <div className="text-xs font-mono uppercase tracking-wider text-indigo-400 font-semibold flex items-center gap-1.5">
+                        <Swords size={14} />
+                        <span>SSB Interviewer & CAPF Adversarial Sparring</span>
+                      </div>
+                      <p className="text-xs text-slate-200 font-medium mt-1">Topic: {sparringResult.topic}</p>
+                    </div>
+                    <button onClick={() => setSparringResult(null)} className="text-slate-500 hover:text-slate-300 p-1">
+                      <X size={16} />
+                    </button>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-800">
+                      <div className="text-[11px] font-mono text-rose-400 font-semibold mb-1">CHALLENGING COUNTER-ARGUMENTS:</div>
+                      <ul className="list-disc list-inside text-xs text-slate-300 space-y-1">
+                        {sparringResult.counterArguments.map((c, i) => <li key={i}>{c}</li>)}
+                      </ul>
+                    </div>
+
+                    <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-800">
+                      <div className="text-[11px] font-mono text-amber-400 font-semibold mb-1">CONSTITUTIONAL / DATA BLIND SPOT:</div>
+                      <p className="text-xs text-slate-300">{sparringResult.dataOrConstitutionalCitationMissed}</p>
+                    </div>
+
+                    <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-800 space-y-2">
+                      <div className="text-[11px] font-mono text-teal-400 font-semibold">3-MINUTE SSB LECTURETTE STRUCTURE:</div>
+                      <div className="text-xs text-slate-300 space-y-1.5">
+                        <div><strong className="text-teal-300 font-mono text-[11px]">1. Hook (30s):</strong> {sparringResult.lecturetteSkeleton.introHook}</div>
+                        <div><strong className="text-teal-300 font-mono text-[11px]">2. Drivers (60s):</strong> {sparringResult.lecturetteSkeleton.keyDrivers}</div>
+                        <div><strong className="text-teal-300 font-mono text-[11px]">3. Challenges (60s):</strong> {sparringResult.lecturetteSkeleton.criticalChallenges}</div>
+                        <div><strong className="text-teal-300 font-mono text-[11px]">4. Way Forward (30s):</strong> {sparringResult.lecturetteSkeleton.strategicWayForward}</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
               
               <div className="pt-3 border-t border-slate-800 space-y-2">
                 <div className="text-xs text-slate-500 font-mono">saved analyses bank ({analyses.length})</div>
@@ -1277,7 +1599,16 @@ export default function PrepOS() {
                   <details key={a.id} className="bg-slate-900 rounded-xl p-3 text-xs border border-slate-800">
                     <summary className="cursor-pointer text-slate-200 flex justify-between items-center font-medium">
                       <span>{a.topic} <span className="text-slate-500 font-mono text-[11px]">· {a.date}</span></span>
-                      <button onClick={(e) => { e.preventDefault(); deleteAnalysis(a.id); }} className="text-slate-600 hover:text-red-400"><Trash2 size={12} /></button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={(e) => { e.preventDefault(); triggerSparringAgent(a); }}
+                          className="px-2 py-1 bg-indigo-950 hover:bg-indigo-900 border border-indigo-800 text-indigo-300 rounded font-mono text-[10px] flex items-center gap-1 transition"
+                        >
+                          <Swords size={11} />
+                          <span>AI Spar</span>
+                        </button>
+                        <button onClick={(e) => { e.preventDefault(); deleteAnalysis(a.id); }} className="text-slate-600 hover:text-red-400"><Trash2 size={12} /></button>
+                      </div>
                     </summary>
                     <div className="mt-3 space-y-2 text-slate-400 border-t border-slate-800/60 pt-2">
                       {ANALYSIS_FRAMEWORK.map(f => a[f] && (
