@@ -440,7 +440,6 @@ export default function PrepOS() {
   }
 
   async function handleArticleFeedback(article, action) {
-    // Optimistically update UI
     if (action === 'dismiss') {
       setFeedArticles(prev => prev.filter(a => a.id !== article.id));
     } else {
@@ -1720,7 +1719,7 @@ export default function PrepOS() {
             </div>
           )}
 
-          {/* TAB 8: CURRENT AFFAIRS (WITH 2-AXIS SCORES & ADAPTIVE FEEDBACK LOOP) */}
+          {/* TAB 8: CURRENT AFFAIRS */}
           {tab === 'feed' && (
             <div className="space-y-4">
               <div className="bg-slate-900/80 p-3.5 rounded-xl border border-slate-800 flex justify-between items-center">
@@ -1730,7 +1729,7 @@ export default function PrepOS() {
                     <span>2-Axis Intelligence Scorer & Adaptive Feedback Loop</span>
                   </div>
                   <div className="text-[11px] text-slate-500 font-mono mt-0.5">
-                    $S_\text{static}$ (NCERT/Standard Texts) &bull; $S_\text{exam}$ (UPSC/SSC Pattern) &bull; Upvote/Dismiss updates weekly model weights
+                    S(Static) (NCERT/Standard Texts) &bull; S(Exam) (UPSC/SSC Pattern) &bull; Upvote/Dismiss updates weekly model weights
                   </div>
                 </div>
                 <button
@@ -1752,7 +1751,6 @@ export default function PrepOS() {
               <div className="space-y-3">
                 {feedArticles.map(item => (
                   <div key={item.id || item.link} className="bg-slate-900 rounded-xl p-4 border border-slate-800/80 space-y-3">
-                    {/* Header Row: Source, Type Badge, and Date */}
                     <div className="flex justify-between items-center text-[11px] font-mono">
                       <div className="flex items-center gap-2">
                         <span className="text-slate-400 bg-slate-950 px-2 py-0.5 rounded border border-slate-800 font-semibold">{item.source}</span>
@@ -1765,28 +1763,25 @@ export default function PrepOS() {
                       <span className="text-slate-500">{item.pub_date}</span>
                     </div>
 
-                    {/* Headline Link */}
                     <a href={item.link} target="_blank" rel="noreferrer" className="block text-sm text-slate-100 hover:text-teal-300 font-medium leading-snug transition">
                       {item.title}
                     </a>
 
-                    {/* 2-Axis Score Indicators */}
                     <div className="grid grid-cols-2 gap-2 text-xs font-mono">
                       <div className="bg-slate-950 p-2 rounded-lg border border-slate-800 flex justify-between items-center">
-                        <span className="text-slate-500 text-[11px]">Static Syllabus ($S_\text{static}$):</span>
+                        <span className="text-slate-500 text-[11px]">Static Syllabus S(Static):</span>
                         <span className={`font-semibold ${item.static_relevance_score >= 8 ? 'text-emerald-400' : 'text-amber-400'}`}>
                           {item.static_relevance_score}/10
                         </span>
                       </div>
                       <div className="bg-slate-950 p-2 rounded-lg border border-slate-800 flex justify-between items-center">
-                        <span className="text-slate-500 text-[11px]">Exam Pattern ($S_\text{exam}$):</span>
+                        <span className="text-slate-500 text-[11px]">Exam Pattern S(Exam):</span>
                         <span className={`font-semibold ${item.exam_pattern_score >= 8 ? 'text-emerald-400' : 'text-amber-400'}`}>
                           {item.exam_pattern_score}/10
                         </span>
                       </div>
                     </div>
 
-                    {/* Mapped Syllabus Taxonomy & Analytical Hook */}
                     <div className="bg-slate-950/70 p-2.5 rounded-lg border border-slate-800/80 text-xs space-y-1">
                       <div className="text-teal-400 font-mono text-[11px]">
                         Mapped Node: <span className="text-slate-200 font-sans">{item.mapped_subject} &bull; {item.mapped_chapter}</span>
@@ -1798,7 +1793,6 @@ export default function PrepOS() {
                       )}
                     </div>
 
-                    {/* Action Bar: Analyze Bridge & Feedback Loops */}
                     <div className="flex justify-between items-center pt-1 border-t border-slate-800/60">
                       <div className="flex items-center gap-2">
                         <button
